@@ -1,0 +1,121 @@
+---
+title: "Telco Project"
+author: "Rami"
+date: "May 1, 2016"
+output: html_document
+---
+
+# Setup
+
+```{r}
+options( java.parameters = "-Xmx8g" )
+library(RWeka)
+library(dplyr)
+library(knitr)
+```
+
+```{r}
+classifierStats <- function(classifier) {
+  entireDataSet <- summary(classifier)
+  print(entireDataSet)
+  print(calculateMetrics(entireDataSet))
+  return(classifier)
+}
+
+compareWith10Fold <- function(classifier) {
+  kfold <- evaluate_Weka_classifier(classifier, numFolds = 10)
+  print(kfold)
+  print(calculateMetrics(kfold))
+  return(kfold)
+}
+
+calculateMetrics <- function(kfold) {
+  TP <- kfold$confusionMatrix[1, 1]
+  TN <- kfold$confusionMatrix[2, 2]
+  FP <- kfold$confusionMatrix[2, 1]
+  FN <- kfold$confusionMatrix[1, 2]
+  
+  accuracy  <- (TP + TN) / (TP + TN + FP + FN)
+  precision <- TP / (TP + FP)
+  recall    <- TP / (TP + FN)
+  f1        <- 2 * precision * recall / (precision + recall)
+  
+  res <- list(Accuracy = accuracy, Precision = precision, Recall = recall, F1 = f1)
+  return(res)
+}
+
+RF <- make_Weka_classifier("weka/classifiers/trees/RandomForest")
+NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
+MLP <- make_Weka_classifier("weka/classifiers/functions/MultilayerPerceptron")
+MLP5 <- function(form, data, options = list(model = TRUE)) {
+  # Faster training with only 5 epochs
+  return(MLP(formula(form), data, control = Weka_control(N = 5), options = options))
+}
+C45Bagging <- function(form, data, options = list(model = TRUE)) {
+  return(Bagging(formula(form), data, control = Weka_control(W = "weka.classifiers.trees.J48"), options = options))
+}
+#J48 SMO AdaBoostM1
+```
+
+# Data
+
+```{r}
+dam <- 
+  read.csv("train.csv") %>%
+  left_join(read.csv("contract_ref.csv")) %>%
+  mutate(AVG_USAGE = (X206_SESSION_COUNT + X207_SESSION_COUNT + X208_SESSION_COUNT + X209_SESSION_COUNT + X210_SESSION_COUNT)/5) %>%
+  mutate(TARGET = as.factor(TARGET))
+levels(dam$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
+levels(dam$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
+```
+
+# Train
+```{r}
+cls.c45 <- J48(TARGET ~ . - CONTRACT_KEY, dam)
+cls.c45.10fold <- cls.c45 %>% compareWith10Fold()
+```
+
+```{r}
+cls.rf <- RF(TARGET ~ . - CONTRACT_KEY, dam)
+cls.rf.10fold <- cls.rf %>% compareWith10Fold()
+```
+
+```{r}
+#SMO(TARGET ~ . - CONTRACT_KEY, dam) %>% classifierStats()
+```
+
+```{r}
+cls.nb <- NB(TARGET ~ . - CONTRACT_KEY, dam)
+cls.nb.10fold <- cls.nb %>% compareWith10Fold()
+```
+
+```{r}
+#MLP(TARGET ~ . - CONTRACT_KEY, dam) %>% compareWith10Fold()
+```
+
+```{r}
+cls.bag <- C45Bagging(TARGET ~ . - CONTRACT_KEY, dam)
+cls.bag.10fold <- cls.bag %>% compareWith10Fold()
+```
+
+```{r}
+cls.boost <- AdaBoostM1(TARGET ~ . - CONTRACT_KEY, dam)
+cls.boost.10fold <- cls.boost %>% compareWith10Fold()
+```
+
+# Test
+
+```{r}
+test <- read.csv("test.csv") %>%
+  left_join(read.csv("contract_ref.csv")) %>%
+  mutate(AVG_USAGE = (X206_SESSION_COUNT + X207_SESSION_COUNT + X208_SESSION_COUNT + X209_SESSION_COUNT + X210_SESSION_COUNT)/5)
+levels(test$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
+levels(test$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
+```
+
+```{r}
+res.boost <- test %>%
+  mutate(PREDICTED_TARGET = predict(cls.boost, test)) %>%
+  select(CONTRACT_KEY, PREDICTED_TARGET)
+res.boost %>% write.csv("boost_submission.csv", row.names = FALSE)
+```
