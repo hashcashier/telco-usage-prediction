@@ -8,7 +8,7 @@ output: html_document
 # Setup
 
 ```{r}
-options( java.parameters = "-Xmx8g" )
+options( java.parameters = "-Xmx12g" )
 library(RWeka)
 library(dplyr)
 library(knitr)
@@ -17,23 +17,45 @@ library(knitr)
 ```{r}
 train <- function(classifier, data) {
   res <- classifier(TARGET ~ 
-                    AGE
-                    + GENDER 
-                    + RATE_PLAN 
-                    + VALUE_SEGMENT 
-                    + HANDSET_NAME 
-                    + X206_SESS_DIFF 
-                    + X206_USAGE_DIFF
-                    + X207_SESS_DIFF 
-                    + X207_USAGE_DIFF
-                    + X208_SESS_DIFF 
-                    + X208_USAGE_DIFF
-                    + X209_SESS_DIFF 
-                    + X209_USAGE_DIFF
-                    + X210_SESS_DIFF 
-                    + X210_USAGE_DIFF
-                    + AVG_USAGE,
-                    data)
+                    #AGE
+                    #+ GENDER 
+                    #+ RATE_PLAN 
+                    VALUE_SEGMENT 
+                    #+ HANDSET_NAME
+                    
+                    #+ X206_SESS_DIFF 
+                    + X206_USAGE_DIFF 
+                    #+ X206_USAGE
+                    #+ X206_SESSION_COUNT
+                    #+ X206_USAGE_SESS
+                    
+                    #+ X207_SESS_DIFF
+                    + X207_USAGE_DIFF 
+                    #+ X207_USAGE
+                    #+ X207_SESSION_COUNT
+                    #+ X207_USAGE_SESS
+                    
+                    #+ X208_SESS_DIFF 
+                    + X208_USAGE_DIFF 
+                    #+ X208_USAGE
+                    #+ X208_SESSION_COUNT
+                    #+ X208_USAGE_SESS
+                    
+                    #+ X209_SESS_DIFF 
+                    #+ X209_USAGE_DIFF 
+                    + X209_USAGE
+                    #+ X209_SESSION_COUNT
+                    #+ X209_USAGE_SESS
+                    
+                    #+ X210_SESS_DIFF 
+                    + X210_USAGE_DIFF 
+                    + X210_USAGE
+                    + X210_SESSION_COUNT
+                    + X210_USAGE_SESS
+                    
+                    + AVG_USAGE
+                    #+ AVG_SESS
+                    , data)
   return(res)
 }
 
@@ -54,8 +76,8 @@ classifierStats <- function(classifier) {
   return(classifier)
 }
 
-compareWith10Fold <- function(classifier) {
-  kfold <- evaluate_Weka_classifier(classifier, numFolds = 10)
+compareWithKFold <- function(classifier, K = 12) {
+  kfold <- evaluate_Weka_classifier(classifier, numFolds = K)
   print(kfold)
   print(calculateMetrics(kfold))
   return(kfold)
@@ -106,7 +128,12 @@ procData <- function(data, target = TRUE) {
     mutate(X207_SESS_DIFF = X207_SESSION_COUNT - AVG_USAGE) %>%
     mutate(X208_SESS_DIFF = X208_SESSION_COUNT - AVG_USAGE) %>%
     mutate(X209_SESS_DIFF = X209_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_USAGE)
+    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X206_USAGE_SESS = X206_USAGE/X206_SESSION_COUNT) %>%
+    mutate(X207_USAGE_SESS = X207_USAGE/X207_SESSION_COUNT) %>%
+    mutate(X208_USAGE_SESS = X208_USAGE/X208_SESSION_COUNT) %>%
+    mutate(X209_USAGE_SESS = X209_USAGE/X209_SESSION_COUNT) %>%
+    mutate(X210_USAGE_SESS = X210_USAGE/X210_SESSION_COUNT)
   
   if (target)
     res <- res %>% mutate(TARGET = as.factor(TARGET))
@@ -125,49 +152,68 @@ dam <- read.csv("train.csv") %>% left_join(read.csv("contract_ref.csv")) %>% pro
 test <- read.csv("test.csv") %>% left_join(read.csv("contract_ref.csv")) %>% procData(target = FALSE)
 ```
 
+# Features
+
+```{r}
+AS <- make_Weka_filter("weka.filters.supervised.attribute.AttributeSelection")
+CFS <- function(form, data) {
+  return(AS(
+    formula(form),
+    data, control = Weka_control(
+      E = "weka.attributeSelection.CfsSubsetEval",
+      S = "weka.attributeSelection.GreedyStepwise")))
+}
+```
+
+```{r}
+CFS(TARGET ~ ., dam) %>% glimpse()
+```
+
 # Train
 ```{r}
 cls.c45 <- train(J48, dam)
-cls.c45.10fold <- cls.c45 %>% compareWith10Fold()
+cls.c45.kfold <- cls.c45 %>% compareWithKFold()
 ```
 
 ```{r}
 cls.rf <- train(RF, dam)
-cls.rf.10fold <- cls.rf %>% compareWith10Fold()
+cls.rf.kfold <- cls.rf %>% compareWithKFold()
 ```
 
 ```{r}
-cls.smo <- train(SMO, dam)
-cls.smo.10fold <- cls.smo %>% compareWith10Fold()
+#cls.smo <- train(SMO, dam)
+#cls.smo.kfold <- cls.smo %>% compareWithKFold()
 ```
 
 ```{r}
 cls.nb <- train(NB, dam)
-cls.nb.10fold <- cls.nb %>% compareWith10Fold()
+cls.nb.kfold <- cls.nb %>% compareWithKFold()
 ```
 
 ```{r}
-#MLP(TARGET ~ . - CONTRACT_KEY, dam) %>% compareWith10Fold()
+#MLP(TARGET ~ . - CONTRACT_KEY, dam) %>% compareWithKFold()
+cls.mlp <- train(MLP5, dam)
+cls.mlp.kfold <- cls.mlp %>% compareWithKFold()
 ```
 
 ```{r}
 cls.bag <- train(C45Bagging, dam)
-cls.bag.10fold <- cls.bag %>% compareWith10Fold()
+cls.bag.kfold <- cls.bag %>% compareWithKFold()
 ```
 
 ```{r}
 cls.boost <- train(AdaBoostM1, dam)
-cls.boost.10fold <- cls.boost %>% compareWith10Fold()
+cls.boost.kfold <- cls.boost %>% compareWithKFold()
 ```
 
 ```{r}
 cls.logit <- train(LogitBoost, dam)
-cls.logit.10fold <- cls.logit %>% compareWith10Fold()
+cls.logit.kfold <- cls.logit %>% compareWithKFold()
 ```
 
 ```{r}
 cls.stacking <- train(Stacking, dam)
-cls.stacking.10fold <- cls.stacking %>% compareWith10Fold()
+cls.stacking.kfold <- cls.stacking %>% compareWithKFold()
 ```
 
 # Test
