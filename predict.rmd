@@ -15,6 +15,36 @@ library(knitr)
 ```
 
 ```{r}
+train <- function(classifier, data) {
+  res <- classifier(TARGET ~ 
+                      X206_SESSION_COUNT 
+                    + X206_USAGE 
+                    + X207_SESSION_COUNT 
+                    + X207_USAGE 
+                    + X208_SESSION_COUNT 
+                    + X208_USAGE 
+                    + X209_SESSION_COUNT 
+                    + X209_USAGE 
+                    + X210_SESSION_COUNT 
+                    + X210_USAGE 
+                    + AGE
+                    + GENDER 
+                    + RATE_PLAN 
+                    + VALUE_SEGMENT 
+                    + HANDSET_NAME 
+                    + AVG_USAGE,
+                    data)
+  return(res)
+}
+
+predsave <- function(cls, dat, name) {
+  res <- dat %>%
+    mutate(PREDICTED_TARGET = predict(cls, dat)) %>%
+    select(CONTRACT_KEY, PREDICTED_TARGET)
+  res %>% write.csv(name, row.names = FALSE)
+  return(res)
+}
+
 classifierStats <- function(classifier) {
   entireDataSet <- summary(classifier)
   print(entireDataSet)
@@ -71,21 +101,22 @@ levels(dam$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Plati
 
 # Train
 ```{r}
-cls.c45 <- J48(TARGET ~ . - CONTRACT_KEY, dam)
+cls.c45 <- train(J48, dam)
 cls.c45.10fold <- cls.c45 %>% compareWith10Fold()
 ```
 
 ```{r}
-cls.rf <- RF(TARGET ~ . - CONTRACT_KEY, dam)
+cls.rf <- train(RF, dam)
 cls.rf.10fold <- cls.rf %>% compareWith10Fold()
 ```
 
 ```{r}
-#SMO(TARGET ~ . - CONTRACT_KEY, dam) %>% classifierStats()
+cls.smo <- train(SMO, dam)
+cls.smo.10fold <- cls.smo %>% compareWith10Fold()
 ```
 
 ```{r}
-cls.nb <- NB(TARGET ~ . - CONTRACT_KEY, dam)
+cls.nb <- train(NB, dam)
 cls.nb.10fold <- cls.nb %>% compareWith10Fold()
 ```
 
@@ -94,13 +125,23 @@ cls.nb.10fold <- cls.nb %>% compareWith10Fold()
 ```
 
 ```{r}
-cls.bag <- C45Bagging(TARGET ~ . - CONTRACT_KEY, dam)
+cls.bag <- train(C45Bagging, dam)
 cls.bag.10fold <- cls.bag %>% compareWith10Fold()
 ```
 
 ```{r}
-cls.boost <- AdaBoostM1(TARGET ~ . - CONTRACT_KEY, dam)
+cls.boost <- train(AdaBoostM1, dam)
 cls.boost.10fold <- cls.boost %>% compareWith10Fold()
+```
+
+```{r}
+cls.logit <- train(LogitBoost, dam)
+cls.logit.10fold <- cls.logit %>% compareWith10Fold()
+```
+
+```{r}
+cls.stacking <- train(Stacking, dam)
+cls.stacking.10fold <- cls.stacking %>% compareWith10Fold()
 ```
 
 # Test
@@ -114,8 +155,29 @@ levels(test$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Plat
 ```
 
 ```{r}
-res.boost <- test %>%
-  mutate(PREDICTED_TARGET = predict(cls.boost, test)) %>%
-  select(CONTRACT_KEY, PREDICTED_TARGET)
-res.boost %>% write.csv("boost_submission.csv", row.names = FALSE)
+res.boost <- predsave(cls.boost, test, "submission.boost.csv")
+```
+
+```{r}
+res.rf <- predsave(cls.rf, test, "submission.forest.csv")
+```
+
+```{r}
+res.bag <- predsave(cls.bag, test, "submission.bag.csv")
+```
+
+```{r}
+res.nb <- predsave(cls.nb, test, "submission.bayes.csv")
+```
+
+```{r}
+res.c45 <- predsave(cls.c45, test, "submission.c45.csv")
+```
+
+```{r}
+res.logit <- predsave(cls.logit, test, "submission.logit.csv")
+```
+
+```{r}
+res.logit <- predsave(cls.logit, test, "submission.logit.csv")
 ```
