@@ -17,21 +17,21 @@ library(knitr)
 ```{r}
 train <- function(classifier, data) {
   res <- classifier(TARGET ~ 
-                      X206_SESSION_COUNT 
-                    + X206_USAGE 
-                    + X207_SESSION_COUNT 
-                    + X207_USAGE 
-                    + X208_SESSION_COUNT 
-                    + X208_USAGE 
-                    + X209_SESSION_COUNT 
-                    + X209_USAGE 
-                    + X210_SESSION_COUNT 
-                    + X210_USAGE 
-                    + AGE
+                    AGE
                     + GENDER 
                     + RATE_PLAN 
                     + VALUE_SEGMENT 
                     + HANDSET_NAME 
+                    + X206_SESS_DIFF 
+                    + X206_USAGE_DIFF
+                    + X207_SESS_DIFF 
+                    + X207_USAGE_DIFF
+                    + X208_SESS_DIFF 
+                    + X208_USAGE_DIFF
+                    + X209_SESS_DIFF 
+                    + X209_USAGE_DIFF
+                    + X210_SESS_DIFF 
+                    + X210_USAGE_DIFF
                     + AVG_USAGE,
                     data)
   return(res)
@@ -44,7 +44,9 @@ predsave <- function(cls, dat, name) {
   res %>% write.csv(name, row.names = FALSE)
   return(res)
 }
+```
 
+```{r}
 classifierStats <- function(classifier) {
   entireDataSet <- summary(classifier)
   print(entireDataSet)
@@ -73,7 +75,9 @@ calculateMetrics <- function(kfold) {
   res <- list(Accuracy = accuracy, Precision = precision, Recall = recall, F1 = f1)
   return(res)
 }
+```
 
+```{r}
 RF <- make_Weka_classifier("weka/classifiers/trees/RandomForest")
 NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
 MLP <- make_Weka_classifier("weka/classifiers/functions/MultilayerPerceptron")
@@ -84,19 +88,41 @@ MLP5 <- function(form, data, options = list(model = TRUE)) {
 C45Bagging <- function(form, data, options = list(model = TRUE)) {
   return(Bagging(formula(form), data, control = Weka_control(W = "weka.classifiers.trees.J48"), options = options))
 }
-#J48 SMO AdaBoostM1
 ```
 
 # Data
 
 ```{r}
-dam <- 
-  read.csv("train.csv") %>%
-  left_join(read.csv("contract_ref.csv")) %>%
-  mutate(AVG_USAGE = (X206_SESSION_COUNT + X207_SESSION_COUNT + X208_SESSION_COUNT + X209_SESSION_COUNT + X210_SESSION_COUNT)/5) %>%
-  mutate(TARGET = as.factor(TARGET))
-levels(dam$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
-levels(dam$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
+procData <- function(data, target = TRUE) {
+  res <- data %>%
+    mutate(AVG_USAGE = (X206_USAGE + X207_USAGE + X208_USAGE + X209_USAGE + X210_USAGE)/5) %>%
+    mutate(X206_USAGE_DIFF = X206_USAGE - AVG_USAGE) %>%
+    mutate(X207_USAGE_DIFF = X207_USAGE - AVG_USAGE) %>%
+    mutate(X208_USAGE_DIFF = X208_USAGE - AVG_USAGE) %>%
+    mutate(X209_USAGE_DIFF = X209_USAGE - AVG_USAGE) %>%
+    mutate(X210_USAGE_DIFF = X210_USAGE - AVG_USAGE) %>%
+    mutate(AVG_SESS = (X206_SESSION_COUNT+X207_SESSION_COUNT+X208_SESSION_COUNT+X209_SESSION_COUNT+X210_SESSION_COUNT)/5) %>%
+    mutate(X206_SESS_DIFF = X206_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X207_SESS_DIFF = X207_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X208_SESS_DIFF = X208_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X209_SESS_DIFF = X209_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_USAGE)
+  
+  if (target)
+    res <- res %>% mutate(TARGET = as.factor(TARGET))
+  
+  levels(res$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
+  levels(res$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
+  return(res)
+}
+```
+
+```{r}
+dam <- read.csv("train.csv") %>% left_join(read.csv("contract_ref.csv")) %>% procData()
+```
+
+```{r}
+test <- read.csv("test.csv") %>% left_join(read.csv("contract_ref.csv")) %>% procData(target = FALSE)
 ```
 
 # Train
@@ -147,14 +173,6 @@ cls.stacking.10fold <- cls.stacking %>% compareWith10Fold()
 # Test
 
 ```{r}
-test <- read.csv("test.csv") %>%
-  left_join(read.csv("contract_ref.csv")) %>%
-  mutate(AVG_USAGE = (X206_SESSION_COUNT + X207_SESSION_COUNT + X208_SESSION_COUNT + X209_SESSION_COUNT + X210_SESSION_COUNT)/5)
-levels(test$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
-levels(test$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
-```
-
-```{r}
 res.boost <- predsave(cls.boost, test, "submission.boost.csv")
 ```
 
@@ -172,10 +190,6 @@ res.nb <- predsave(cls.nb, test, "submission.bayes.csv")
 
 ```{r}
 res.c45 <- predsave(cls.c45, test, "submission.c45.csv")
-```
-
-```{r}
-res.logit <- predsave(cls.logit, test, "submission.logit.csv")
 ```
 
 ```{r}
