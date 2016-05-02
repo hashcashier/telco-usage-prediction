@@ -17,10 +17,85 @@ library(knitr)
 ```{r}
 trainClassifier <- function(classifier, data) {
   res <- classifier(TARGET ~ 
-                      X209_TARGET
-                    + X210_TARGET
-                    + VALUE_SEGMENT_CR
-                    + VALUE_SEGMENT_PR
+#                       X209_TARGET
+#                     + X210_TARGET
+#                     + VALUE_SEGMENT_CR
+#                     + VALUE_SEGMENT_PR
+
+#                         X210_USAGE
+#                       + AVG_USAGE
+#                       + X210_USAGE_DIFF
+#                       + X209_TARGET
+#                       + X210_TARGET
+#                       + X210_USAGE_SESS
+#                       + VALUE_SEGMENT_CR
+
+  X210_USAGE                                    
++ X210_TARGET                                   
++ X206_TARGET_INV                               
++ X207_TARGET_INV                               
++ RATE_PLANBusiness.Unified.USB.3.5.GB          
++ RATE_PLANEmployee.VPN                         
++ RATE_PLANEnterprise.Shared.Data.Bundle        
++ RATE_PLANTE.Basic.Control                     
++ HANDSET_NAMEAcer.Liquid.S2.S520               
++ HANDSET_NAMEAlcatel.One.Touch.I216X.Pixi.7    
++ HANDSET_NAMEApple.iPhone.3GS                  
++ HANDSET_NAMEBlackBerry.9780                   
++ HANDSET_NAMEBlackBerry.Bold.9700              
++ HANDSET_NAMEBlackBerry.Curve.9300             
++ HANDSET_NAMEHuawei.E220                       
++ HANDSET_NAMEHuawei.E261                       
++ HANDSET_NAMEHuawei.E8231s.2                   
++ HANDSET_NAMEHuawei.MU709s.2                   
++ HANDSET_NAMEHuawei.NXT.L29                    
++ HANDSET_NAMELenovo.Lenovo.A7010a48            
++ HANDSET_NAMELG.E615.Optimus.L5.Dual           
++ HANDSET_NAMELG.G3.LTE.A                       
++ HANDSET_NAMELG.G3.Mini                        
++ HANDSET_NAMEMicrosoft.Lumia.950.XL            
++ HANDSET_NAMEMotorola.Moto.X..2nd.Gen..        
++ HANDSET_NAMEMotorola.Moto.X.Play              
++ HANDSET_NAMENokia.108.Dual.SIM                
++ HANDSET_NAMENokia.1120                        
++ HANDSET_NAMENokia.206.Dual.SIM                
++ HANDSET_NAMENokia.206.Dual.SIM..RM.872.       
++ HANDSET_NAMENokia.208.Dual.SIM                
++ HANDSET_NAMENokia.220                         
++ HANDSET_NAMENokia.225.Dual.SIM..RM.1011.      
++ HANDSET_NAMENokia.3100                        
++ HANDSET_NAMENokia.6120.Classic                
++ HANDSET_NAMENokia.Asha.210.Dual.SIM           
++ HANDSET_NAMENokia.Asha.302                    
++ HANDSET_NAMENokia.Asha.306                    
++ HANDSET_NAMENokia.Asha.502                    
++ HANDSET_NAMENokia.C5.06                       
++ HANDSET_NAMENokia.N95                         
++ HANDSET_NAMENokia.X2.05                       
++ HANDSET_NAMENokia.X3.00                       
++ HANDSET_NAMESamsung.C3312.Champ.Delux         
++ HANDSET_NAMESamsung.C3312R                    
++ HANDSET_NAMESamsung.C6712.Star.II.Duos        
++ HANDSET_NAMESamsung.E1205T                    
++ HANDSET_NAMESamsung.Galaxy.Star               
++ HANDSET_NAMESamsung.S5222R.Rex.80             
++ HANDSET_NAMESamsung.S5280.Galaxy.Star         
++ HANDSET_NAMESamsung.S6810.Galaxy.Fame         
++ HANDSET_NAMEShenzhen.Zowee.Technology.7000Q   
++ HANDSET_NAMESony.E6533..TBC.                  
++ HANDSET_NAMESony.Ericsson.LT18i.Xperia.arc.S  
++ HANDSET_NAMESony.Ericsson.LT26i.Xperia.S      
++ HANDSET_NAMESony.Ericsson.LT26w.Xperia.Arco.S 
++ HANDSET_NAMESony.Xperia.Z4.Compact            
++ HANDSET_NAMETecno.Telecom.7C                  
++ HANDSET_NAMEWBC.MO170                         
++ HANDSET_NAMEZTS.International.M10.S8.G300     
++ HANDSET_NAMEZTS.International.V5.A2           
++ TARGET                                        
+
+# [1] "X210_USAGE"       "AVG_USAGE"        "X210_USAGE_DIFF"  "X209_TARGET"      "X210_TARGET"      "X210_USAGE_SESS"  "VALUE_SEGMENT_CR"
+# [8] "TARGET
+
                     , data)
   return(res)
 }
@@ -96,23 +171,6 @@ train <- getCSV("engineered.train.csv")
 
 ```{r}
 test <- getCSV("engineered.test.csv", target = FALSE)
-```
-
-# Features
-
-```{r}
-AS <- make_Weka_filter("weka.filters.supervised.attribute.AttributeSelection")
-CFS <- function(form, data) {
-  return(AS(
-    formula(form),
-    data, control = Weka_control(
-      E = "weka.attributeSelection.CfsSubsetEval",
-      S = "weka.attributeSelection.GreedyStepwise")))
-}
-```
-
-```{r}
-CFS(TARGET ~ ., train) %>% glimpse()
 ```
 
 # Train
