@@ -15,50 +15,18 @@ library(knitr)
 ```
 
 ```{r}
-train <- function(classifier, data) {
+trainClassifier <- function(classifier, data) {
   res <- classifier(TARGET ~ 
-                    #AGE
-                    #+ GENDER 
-                    #+ RATE_PLAN 
-                    VALUE_SEGMENT 
-                    #+ HANDSET_NAME
-                    
-                    #+ X206_SESS_DIFF 
-                    + X206_USAGE_DIFF 
-                    #+ X206_USAGE
-                    #+ X206_SESSION_COUNT
-                    #+ X206_USAGE_SESS
-                    
-                    #+ X207_SESS_DIFF
-                    + X207_USAGE_DIFF 
-                    #+ X207_USAGE
-                    #+ X207_SESSION_COUNT
-                    #+ X207_USAGE_SESS
-                    
-                    #+ X208_SESS_DIFF 
-                    + X208_USAGE_DIFF 
-                    #+ X208_USAGE
-                    #+ X208_SESSION_COUNT
-                    #+ X208_USAGE_SESS
-                    
-                    #+ X209_SESS_DIFF 
-                    #+ X209_USAGE_DIFF 
-                    + X209_USAGE
-                    #+ X209_SESSION_COUNT
-                    #+ X209_USAGE_SESS
-                    
-                    #+ X210_SESS_DIFF 
-                    + X210_USAGE_DIFF 
-                    + X210_USAGE
-                    + X210_SESSION_COUNT
-                    + X210_USAGE_SESS
-                    
-                    + AVG_USAGE
-                    #+ AVG_SESS
+                      X209_TARGET
+                    + X210_TARGET
+                    + VALUE_SEGMENT_CR
+                    + VALUE_SEGMENT_PR
                     , data)
   return(res)
 }
+```
 
+```{r}
 predsave <- function(cls, dat, name) {
   res <- dat %>%
     mutate(PREDICTED_TARGET = predict(cls, dat)) %>%
@@ -105,7 +73,7 @@ NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
 MLP <- make_Weka_classifier("weka/classifiers/functions/MultilayerPerceptron")
 MLP5 <- function(form, data, options = list(model = TRUE)) {
   # Faster training with only 5 epochs
-  return(MLP(formula(form), data, control = Weka_control(N = 5), options = options))
+  return(MLP(formula(form), data, control = Weka_control(N = 100), options = options))
 }
 C45Bagging <- function(form, data, options = list(model = TRUE)) {
   return(Bagging(formula(form), data, control = Weka_control(W = "weka.classifiers.trees.J48"), options = options))
@@ -113,43 +81,21 @@ C45Bagging <- function(form, data, options = list(model = TRUE)) {
 ```
 
 # Data
-
 ```{r}
-procData <- function(data, target = TRUE) {
-  res <- data %>%
-    mutate(AVG_USAGE = (X206_USAGE + X207_USAGE + X208_USAGE + X209_USAGE + X210_USAGE)/5) %>%
-    mutate(X206_USAGE_DIFF = X206_USAGE - AVG_USAGE) %>%
-    mutate(X207_USAGE_DIFF = X207_USAGE - AVG_USAGE) %>%
-    mutate(X208_USAGE_DIFF = X208_USAGE - AVG_USAGE) %>%
-    mutate(X209_USAGE_DIFF = X209_USAGE - AVG_USAGE) %>%
-    mutate(X210_USAGE_DIFF = X210_USAGE - AVG_USAGE) %>%
-    mutate(AVG_SESS = (X206_SESSION_COUNT+X207_SESSION_COUNT+X208_SESSION_COUNT+X209_SESSION_COUNT+X210_SESSION_COUNT)/5) %>%
-    mutate(X206_SESS_DIFF = X206_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X207_SESS_DIFF = X207_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X208_SESS_DIFF = X208_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X209_SESS_DIFF = X209_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X206_USAGE_SESS = X206_USAGE/X206_SESSION_COUNT) %>%
-    mutate(X207_USAGE_SESS = X207_USAGE/X207_SESSION_COUNT) %>%
-    mutate(X208_USAGE_SESS = X208_USAGE/X208_SESSION_COUNT) %>%
-    mutate(X209_USAGE_SESS = X209_USAGE/X209_SESSION_COUNT) %>%
-    mutate(X210_USAGE_SESS = X210_USAGE/X210_SESSION_COUNT)
-  
+getCSV <- function(fileName, target = TRUE) {
+  res <- read.csv(fileName)
   if (target)
     res <- res %>% mutate(TARGET = as.factor(TARGET))
-  
-  levels(res$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
-  levels(res$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
   return(res)
 }
 ```
 
 ```{r}
-dam <- read.csv("train.csv") %>% left_join(read.csv("contract_ref.csv")) %>% procData()
+train <- getCSV("engineered.train.csv")
 ```
 
 ```{r}
-test <- read.csv("test.csv") %>% left_join(read.csv("contract_ref.csv")) %>% procData(target = FALSE)
+test <- getCSV("engineered.test.csv", target = FALSE)
 ```
 
 # Features
@@ -166,54 +112,48 @@ CFS <- function(form, data) {
 ```
 
 ```{r}
-CFS(TARGET ~ ., dam) %>% glimpse()
+CFS(TARGET ~ ., train) %>% glimpse()
 ```
 
 # Train
 ```{r}
-cls.c45 <- train(J48, dam)
+cls.c45 <- trainClassifier(J48, train)
 cls.c45.kfold <- cls.c45 %>% compareWithKFold()
 ```
 
 ```{r}
-cls.rf <- train(RF, dam)
+cls.rf <- trainClassifier(RF, train)
 cls.rf.kfold <- cls.rf %>% compareWithKFold()
 ```
 
 ```{r}
-#cls.smo <- train(SMO, dam)
+#cls.smo <- trainClassifier(SMO, train)
 #cls.smo.kfold <- cls.smo %>% compareWithKFold()
 ```
 
 ```{r}
-cls.nb <- train(NB, dam)
+cls.nb <- trainClassifier(NB, train)
 cls.nb.kfold <- cls.nb %>% compareWithKFold()
 ```
 
 ```{r}
-#MLP(TARGET ~ . - CONTRACT_KEY, dam) %>% compareWithKFold()
-cls.mlp <- train(MLP5, dam)
+cls.mlp <- trainClassifier(MLP5, train)
 cls.mlp.kfold <- cls.mlp %>% compareWithKFold()
 ```
 
 ```{r}
-cls.bag <- train(C45Bagging, dam)
+cls.bag <- trainClassifier(C45Bagging, train)
 cls.bag.kfold <- cls.bag %>% compareWithKFold()
 ```
 
 ```{r}
-cls.boost <- train(AdaBoostM1, dam)
+cls.boost <- trainClassifier(AdaBoostM1, train)
 cls.boost.kfold <- cls.boost %>% compareWithKFold()
 ```
 
 ```{r}
-cls.logit <- train(LogitBoost, dam)
+cls.logit <- trainClassifier(LogitBoost, train)
 cls.logit.kfold <- cls.logit %>% compareWithKFold()
-```
-
-```{r}
-cls.stacking <- train(Stacking, dam)
-cls.stacking.kfold <- cls.stacking %>% compareWithKFold()
 ```
 
 # Test
@@ -240,4 +180,8 @@ res.c45 <- predsave(cls.c45, test, "submission.c45.csv")
 
 ```{r}
 res.logit <- predsave(cls.logit, test, "submission.logit.csv")
+```
+
+```{r}
+res.mlp <- predsave(cls.mlp, test, "submission.mlp.csv")
 ```

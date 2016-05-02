@@ -1,0 +1,130 @@
+---
+title: "Teclo Feature Engineering"
+author: "Rami"
+date: "May 2, 2016"
+output: html_document
+---
+
+# Setup
+
+```{r}
+options( java.parameters = "-Xmx12g" )
+library(RWeka)
+library(dplyr)
+library(knitr)
+```
+
+```{r}
+eqCheck <- function(a, b) {
+  return(!is.na(a) & !is.na(b) & a == b)
+}
+```
+
+# Data
+
+```{r}
+featureCrafting <- function(data, target = TRUE) {
+  res <- data
+  
+  levels(res$GENDER) <- c("F", "F", "F", "M", "M", "M",  "NA", "NA")
+  levels(res$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", "NA", "Platinum", "Premium")
+  res$VALUE_SEGMENT[is.na(res$VALUE_SEGMENT)] <- "NA"
+
+  if (target)
+    res <- res %>% mutate(TARGET = as.factor(TARGET))
+
+  res <- res %>%
+    mutate(AVG_USAGE = (X206_USAGE + X207_USAGE + X208_USAGE + X209_USAGE + X210_USAGE)/5) %>%
+    mutate(X206_USAGE_DIFF = X206_USAGE - AVG_USAGE) %>%
+    mutate(X207_USAGE_DIFF = X207_USAGE - AVG_USAGE) %>%
+    mutate(X208_USAGE_DIFF = X208_USAGE - AVG_USAGE) %>%
+    mutate(X209_USAGE_DIFF = X209_USAGE - AVG_USAGE) %>%
+    mutate(X210_USAGE_DIFF = X210_USAGE - AVG_USAGE) %>%
+    mutate(X206_TARGET = X206_USAGE_DIFF > 500) %>%
+    mutate(X207_TARGET = X207_USAGE_DIFF > 500) %>%
+    mutate(X208_TARGET = X208_USAGE_DIFF > 500) %>%
+    mutate(X209_TARGET = X209_USAGE_DIFF > 500) %>%
+    mutate(X210_TARGET = X210_USAGE_DIFF > 500) %>%
+    mutate(AVG_SESS = (X206_SESSION_COUNT+X207_SESSION_COUNT+X208_SESSION_COUNT+X209_SESSION_COUNT+X210_SESSION_COUNT)/5) %>%
+    mutate(X206_SESS_DIFF = X206_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X207_SESS_DIFF = X207_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X208_SESS_DIFF = X208_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X209_SESS_DIFF = X209_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X206_USAGE_SESS = X206_USAGE/X206_SESSION_COUNT) %>%
+    mutate(X207_USAGE_SESS = X207_USAGE/X207_SESSION_COUNT) %>%
+    mutate(X208_USAGE_SESS = X208_USAGE/X208_SESSION_COUNT) %>%
+    mutate(X209_USAGE_SESS = X209_USAGE/X209_SESSION_COUNT) %>%
+    mutate(X210_USAGE_SESS = X210_USAGE/X210_SESSION_COUNT)
+
+  binary_indicators <- cbind(
+    model.matrix(~ VALUE_SEGMENT - 1, data = res) %>% data.frame(),
+    model.matrix(~ GENDER - 1, data = res) %>% data.frame(),
+    model.matrix(~ RATE_PLAN - 1, data = res) %>% data.frame(),
+    model.matrix(~ HANDSET_NAME - 1, data = res) %>% data.frame()
+  )
+
+  print(str(binary_indicators))
+  
+  res <- res %>%
+    select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN, HANDSET_NAME)) %>%
+    cbind(binary_indicators)
+  
+  return(res)
+}
+
+```
+
+```{r}
+readFile <- function(fileName, targetPresent = TRUE) {
+  res <- read.csv(fileName) %>% 
+    left_join(read.csv("contract_ref.csv")) %>% 
+    featureCrafting(targetPresent)
+  return(res)
+}
+```
+
+```{r}
+train <- readFile("train.csv")
+train %>% glimpse()
+```
+
+```{r}
+test <- readFile("test.csv", targetPresent = FALSE)
+test %>% glimpse()
+```
+
+# Feature Selection
+```{r}
+AS <- make_Weka_filter("weka.filters.supervised.attribute.AttributeSelection")
+CFS <- function(form, data) {
+  return(AS(
+    formula(form),
+    data, control = Weka_control(
+      E = "weka.attributeSelection.CfsSubsetEval",
+      S = "weka.attributeSelection.GreedyStepwise")))
+}
+```
+
+```{r}
+CFS(TARGET ~ ., train) %>% glimpse()
+```
+
+# Output
+```{r}
+processFile <- function(fileName, targetPresent = TRUE) {
+  res <- readFile(fileName, targetPresent)
+  write.csv(res, paste("engineered.", fileName, sep = ''), row.names = FALSE)
+  return(res)
+}
+```
+
+```{r}
+train <- processFile("train.csv")
+train %>% glimpse()
+```
+
+```{r}
+test <- processFile("test.csv", targetPresent = FALSE)
+test %>% glimpse()
+```
