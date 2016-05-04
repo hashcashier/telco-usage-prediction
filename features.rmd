@@ -12,15 +12,59 @@ options( java.parameters = "-Xmx12g" )
 library(RWeka)
 library(dplyr)
 library(knitr)
+library(reshape2)
 ```
 
 ```{r}
-eqCheck <- function(a, b) {
-  return(!is.na(a) & !is.na(b) & a == b)
+normalize <- function(x) {
+  lower = min(x, na.rm = TRUE)
+  upper = max(x, na.rm = TRUE)
+  return((x - lower)/(upper - lower))
 }
 ```
 
-# Data
+# Raw Data
+
+```{r}
+monthly <- read.csv("train.csv")
+contracts <- read.csv("contract_ref.csv")
+dates <- read.csv("calendar_ref.csv")
+daily <- read.csv("daily_aggregate.csv")
+roaming <- read.csv("roaming_monthly.csv")
+testing <- read.csv("test.csv")
+
+train <- merge(monthly, contracts)
+test <- merge(testing, contracts)
+
+detailed <- daily %>%
+  rename(DATE_KEY = CALL_DATE_KEY) %>%
+  merge(dates)
+```
+
+# Training Data (Monthly Aggregate * Contract Reference)
+
+## Exploration
+
+```{r}
+glimpse(train)
+train %>% summary()
+```
+
+```{r}
+handsetOverview <- function(x) {
+  x %>%
+    group_by(HANDSET_NAME) %>% 
+    summarise(
+      MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+      TARGETS = ifelse(!is.null(x$TARGET), mean(TARGET), -1),
+      USERS = length(unique(CONTRACT_KEY))) %>% 
+    arrange(desc(USERS)) %>%
+    head(n = 20)
+}
+cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
+```
+
+## Feature Engineering
 
 ```{r}
 featureCrafting <- function(data, target = TRUE) {
@@ -52,22 +96,52 @@ featureCrafting <- function(data, target = TRUE) {
     mutate(X209_TARGET_INV = X209_USAGE_DIFF < -500) %>%
     mutate(X210_TARGET_INV = X210_USAGE_DIFF < -500) %>%
     mutate(AVG_SESS = (X206_SESSION_COUNT+X207_SESSION_COUNT+X208_SESSION_COUNT+X209_SESSION_COUNT+X210_SESSION_COUNT)/5) %>%
-    mutate(X206_SESS_DIFF = X206_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X207_SESS_DIFF = X207_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X208_SESS_DIFF = X208_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X209_SESS_DIFF = X209_SESSION_COUNT - AVG_USAGE) %>%
-    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_USAGE) %>%
+    mutate(X206_SESS_DIFF = X206_SESSION_COUNT - AVG_SESS) %>%
+    mutate(X207_SESS_DIFF = X207_SESSION_COUNT - AVG_SESS) %>%
+    mutate(X208_SESS_DIFF = X208_SESSION_COUNT - AVG_SESS) %>%
+    mutate(X209_SESS_DIFF = X209_SESSION_COUNT - AVG_SESS) %>%
+    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_SESS) %>%
     mutate(X206_USAGE_SESS = X206_USAGE/X206_SESSION_COUNT) %>%
     mutate(X207_USAGE_SESS = X207_USAGE/X207_SESSION_COUNT) %>%
     mutate(X208_USAGE_SESS = X208_USAGE/X208_SESSION_COUNT) %>%
     mutate(X209_USAGE_SESS = X209_USAGE/X209_SESSION_COUNT) %>%
     mutate(X210_USAGE_SESS = X210_USAGE/X210_SESSION_COUNT)
+  
+  res <- res %>%
+    mutate(AGE = normalize(AGE)) %>%
+    mutate(AVG_USAGE = normalize(AVG_USAGE)) %>%
+    mutate(AVG_SESS = normalize(AVG_SESS)) %>%
+    mutate(X206_SESSION_COUNT = normalize(X206_SESSION_COUNT)) %>%
+    mutate(X207_SESSION_COUNT = normalize(X207_SESSION_COUNT)) %>%
+    mutate(X208_SESSION_COUNT = normalize(X208_SESSION_COUNT)) %>%
+    mutate(X209_SESSION_COUNT = normalize(X209_SESSION_COUNT)) %>%
+    mutate(X210_SESSION_COUNT = normalize(X210_SESSION_COUNT)) %>%
+    mutate(X206_USAGE = normalize(X206_USAGE)) %>%
+    mutate(X207_USAGE = normalize(X207_USAGE)) %>%
+    mutate(X208_USAGE = normalize(X208_USAGE)) %>%
+    mutate(X209_USAGE = normalize(X209_USAGE)) %>%
+    mutate(X210_USAGE = normalize(X210_USAGE)) %>%
+    mutate(X206_USAGE_DIFF = normalize(X206_USAGE_DIFF)) %>%
+    mutate(X207_USAGE_DIFF = normalize(X207_USAGE_DIFF)) %>%
+    mutate(X208_USAGE_DIFF = normalize(X208_USAGE_DIFF)) %>%
+    mutate(X209_USAGE_DIFF = normalize(X209_USAGE_DIFF)) %>%
+    mutate(X210_USAGE_DIFF = normalize(X210_USAGE_DIFF)) %>%
+    mutate(X206_SESS_DIFF = normalize(X206_SESS_DIFF)) %>%
+    mutate(X207_SESS_DIFF = normalize(X207_SESS_DIFF)) %>%
+    mutate(X208_SESS_DIFF = normalize(X208_SESS_DIFF)) %>%
+    mutate(X209_SESS_DIFF = normalize(X209_SESS_DIFF)) %>%
+    mutate(X210_SESS_DIFF = normalize(X210_SESS_DIFF)) %>%
+    mutate(X206_USAGE_SESS = normalize(X206_USAGE_SESS)) %>%
+    mutate(X207_USAGE_SESS = normalize(X207_USAGE_SESS)) %>%
+    mutate(X208_USAGE_SESS = normalize(X208_USAGE_SESS)) %>%
+    mutate(X209_USAGE_SESS = normalize(X209_USAGE_SESS)) %>%
+    mutate(X210_USAGE_SESS = normalize(X210_USAGE_SESS))
 
   binary_indicators <- cbind(
     model.matrix(~ VALUE_SEGMENT - 1, data = res) %>% data.frame(),
     model.matrix(~ GENDER - 1, data = res) %>% data.frame(),
-    model.matrix(~ RATE_PLAN - 1, data = res) %>% data.frame(),
-    model.matrix(~ HANDSET_NAME - 1, data = res) %>% data.frame()
+    model.matrix(~ RATE_PLAN - 1, data = res) %>% data.frame()
+    #model.matrix(~ HANDSET_NAME - 1, data = res) %>% data.frame()
   )
 
   res <- res %>%
@@ -77,7 +151,6 @@ featureCrafting <- function(data, target = TRUE) {
 
   res <- res %>%
     select(-c(CONTRACT_KEY)) %>%
-    scale() %>%
     cbind(data %>% select(CONTRACT_KEY)) %>%
     data.frame()
   
@@ -87,31 +160,47 @@ featureCrafting <- function(data, target = TRUE) {
       data.frame() %>%
       mutate(TARGET = as.logical(TARGET))
     res <- res %>% mutate(TARGET = as.factor(TARGET))
+    levels(res$TARGET) <- c("0", "1")
   }
 
   return(res)
 }
 
+train <- featureCrafting(TRUE)
+test <- featureCrafting(FALSE)
+```
+
+# Daily Aggregates
+
+## Exploration
+
+## Feature Engineering
+
+```{r}
+daily_sum <- detailed %>%
+  group_by(CONTRACT_KEY, DATE_KEY) %>%
+  mutate(USAGE = sum(TOTAL_CONSUMPTION), SESSIONS = sum(NO_OF_SESSIONS)) %>%
+  ungroup() %>%
+  select(CONTRACT_KEY, DATE_KEY, USAGE, SESSIONS) %>%
+  unique()
 ```
 
 ```{r}
-readFile <- function(fileName, targetPresent = TRUE) {
-  res <- read.csv(fileName) %>% 
-    left_join(read.csv("contract_ref.csv")) %>% 
-    featureCrafting(targetPresent)
-  return(res)
-}
+daily_usage <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "USAGE")
+colnames(daily_usage) <- paste("USAGE", colnames(daily_usage), sep = "_")
+daily_usage <- rename(daily_usage, CONTRACT_KEY = USAGE_CONTRACT_KEY)
 ```
 
 ```{r}
-train <- readFile("train.csv")
+daily_sessions <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "SESSIONS")
+colnames(daily_sessions) <- paste("SESSIONS", colnames(daily_sessions), sep = "_")
+daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
 ```
 
-```{r}
-test <- readFile("test.csv", targetPresent = FALSE)
-```
+# Roaming
 
 # Feature Selection
+
 ```{r}
 AS <- make_Weka_filter("weka.filters.supervised.attribute.AttributeSelection")
 CFS <- function(form, data) {
@@ -128,6 +217,7 @@ CFS(TARGET ~ ., train) %>% glimpse()
 ```
 
 # Output
+
 ```{r}
 processFile <- function(fileName, targetPresent = TRUE) {
   res <- readFile(fileName, targetPresent)

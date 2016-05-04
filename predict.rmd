@@ -17,86 +17,19 @@ library(knitr)
 ```{r}
 trainClassifier <- function(classifier, data) {
   res <- classifier(TARGET ~ 
-#                       X209_TARGET
-#                     + X210_TARGET
-#                     + VALUE_SEGMENT_CR
-#                     + VALUE_SEGMENT_PR
-
-#                         X210_USAGE
-#                       + AVG_USAGE
-#                       + X210_USAGE_DIFF
-#                       + X209_TARGET
-#                       + X210_TARGET
-#                       + X210_USAGE_SESS
-#                       + VALUE_SEGMENT_CR
-
-  X210_USAGE                                    
-+ X210_TARGET                                   
-+ X206_TARGET_INV                               
-+ X207_TARGET_INV                               
-+ RATE_PLANBusiness.Unified.USB.3.5.GB          
-+ RATE_PLANEmployee.VPN                         
-+ RATE_PLANEnterprise.Shared.Data.Bundle        
-+ RATE_PLANTE.Basic.Control                     
-+ HANDSET_NAMEAcer.Liquid.S2.S520               
-+ HANDSET_NAMEAlcatel.One.Touch.I216X.Pixi.7    
-+ HANDSET_NAMEApple.iPhone.3GS                  
-+ HANDSET_NAMEBlackBerry.9780                   
-+ HANDSET_NAMEBlackBerry.Bold.9700              
-+ HANDSET_NAMEBlackBerry.Curve.9300             
-+ HANDSET_NAMEHuawei.E220                       
-+ HANDSET_NAMEHuawei.E261                       
-+ HANDSET_NAMEHuawei.E8231s.2                   
-+ HANDSET_NAMEHuawei.MU709s.2                   
-+ HANDSET_NAMEHuawei.NXT.L29                    
-+ HANDSET_NAMELenovo.Lenovo.A7010a48            
-+ HANDSET_NAMELG.E615.Optimus.L5.Dual           
-+ HANDSET_NAMELG.G3.LTE.A                       
-+ HANDSET_NAMELG.G3.Mini                        
-+ HANDSET_NAMEMicrosoft.Lumia.950.XL            
-+ HANDSET_NAMEMotorola.Moto.X..2nd.Gen..        
-+ HANDSET_NAMEMotorola.Moto.X.Play              
-+ HANDSET_NAMENokia.108.Dual.SIM                
-+ HANDSET_NAMENokia.1120                        
-+ HANDSET_NAMENokia.206.Dual.SIM                
-+ HANDSET_NAMENokia.206.Dual.SIM..RM.872.       
-+ HANDSET_NAMENokia.208.Dual.SIM                
-+ HANDSET_NAMENokia.220                         
-+ HANDSET_NAMENokia.225.Dual.SIM..RM.1011.      
-+ HANDSET_NAMENokia.3100                        
-+ HANDSET_NAMENokia.6120.Classic                
-+ HANDSET_NAMENokia.Asha.210.Dual.SIM           
-+ HANDSET_NAMENokia.Asha.302                    
-+ HANDSET_NAMENokia.Asha.306                    
-+ HANDSET_NAMENokia.Asha.502                    
-+ HANDSET_NAMENokia.C5.06                       
-+ HANDSET_NAMENokia.N95                         
-+ HANDSET_NAMENokia.X2.05                       
-+ HANDSET_NAMENokia.X3.00                       
-+ HANDSET_NAMESamsung.C3312.Champ.Delux         
-+ HANDSET_NAMESamsung.C3312R                    
-+ HANDSET_NAMESamsung.C6712.Star.II.Duos        
-+ HANDSET_NAMESamsung.E1205T                    
-+ HANDSET_NAMESamsung.Galaxy.Star               
-+ HANDSET_NAMESamsung.S5222R.Rex.80             
-+ HANDSET_NAMESamsung.S5280.Galaxy.Star         
-+ HANDSET_NAMESamsung.S6810.Galaxy.Fame         
-+ HANDSET_NAMEShenzhen.Zowee.Technology.7000Q   
-+ HANDSET_NAMESony.E6533..TBC.                  
-+ HANDSET_NAMESony.Ericsson.LT18i.Xperia.arc.S  
-+ HANDSET_NAMESony.Ericsson.LT26i.Xperia.S      
-+ HANDSET_NAMESony.Ericsson.LT26w.Xperia.Arco.S 
-+ HANDSET_NAMESony.Xperia.Z4.Compact            
-+ HANDSET_NAMETecno.Telecom.7C                  
-+ HANDSET_NAMEWBC.MO170                         
-+ HANDSET_NAMEZTS.International.M10.S8.G300     
-+ HANDSET_NAMEZTS.International.V5.A2           
-+ TARGET                                        
-
-# [1] "X210_USAGE"       "AVG_USAGE"        "X210_USAGE_DIFF"  "X209_TARGET"      "X210_TARGET"      "X210_USAGE_SESS"  "VALUE_SEGMENT_CR"
-# [8] "TARGET
-
-                    , data)
+                  X210_USAGE                             
+                + X210_USAGE_DIFF
+                + X209_TARGET
+                + X210_TARGET                            
+                + X206_TARGET_INV                        
+                + X207_TARGET_INV                        
+                + X208_TARGET_INV
+                + VALUE_SEGMENTCore
+                + RATE_PLANBusiness.Unified.USB.3.5.GB   
+                + RATE_PLANEmployee.VPN                  
+                + RATE_PLANEnterprise.Shared.Data.Bundle 
+                + RATE_PLANTE.Basic.Control               
+                , data)
   return(res)
 }
 ```
@@ -153,6 +86,22 @@ MLP5 <- function(form, data, options = list(model = TRUE)) {
 C45Bagging <- function(form, data, options = list(model = TRUE)) {
   return(Bagging(formula(form), data, control = Weka_control(W = "weka.classifiers.trees.J48"), options = options))
 }
+SMOLIM <- function(form, data) {
+  return(SMO(formula(form), data, control = Weka_control(
+    M = 5
+  )))
+}
+ASC <- make_Weka_classifier("weka/classifiers/meta/AttributeSelectedClassifier")
+```
+
+```{r}
+NB.AS <- function(form, data, options = list(model = TRUE)) {
+  return(ASC(formula(form), data, options = options, control = Weka_control(
+    E = "weka.attributeSelection.AttributeSetEvaluator",
+    S = "weka.attributeSelection.GreedyStepwise",
+    W = "weka.classifiers.bayes.NaiveBayes"
+  )))
+}
 ```
 
 # Data
@@ -173,7 +122,70 @@ train <- getCSV("engineered.train.csv")
 test <- getCSV("engineered.test.csv", target = FALSE)
 ```
 
-# Train
+# Models
+
+## Naive Bayes + Attribute Selection
+
+```{r}
+NB.AS <- function(form, data, options = list(model = TRUE)) {
+  return(ASC(formula(form), data, options = options, control = Weka_control(
+    E = "weka.attributeSelection.AttributeSetEvaluator",
+    S = "weka.attributeSelection.GreedyStepwise",
+    W = "weka.classifiers.bayes.NaiveBayes"
+  )))
+}
+```
+
+```{r}
+cls.nbas <- NB.CFS(TARGET ~ ., train)
+predict(cls.nbas, test) %>% summary()
+cls.nbas.kfold <- cls.nbas %>% compareWithKFold()
+```
+
+```{r}
+res.nbas <- predsave(cls.nbas, test, "submission.bayescfs.csv")
+#rm(cls.nbas)
+```
+
+## Logistic Regression
+
+```{r}
+Logistic.AS <- function(form, data, options = list(model = TRUE)) {
+  return(ASC(formula(form), data, options = options, control = Weka_control(
+    #E = "weka.attributeSelection.AttributeSetEvaluator",
+    #S = "weka.attributeSelection.GreedyStepwise",
+    W = "weka.classifiers.functions.Logistic"
+  )))
+}
+```
+
+```{r}
+cls.logistic <- Logistic.AS(TARGET ~ ., train)
+cls.logistic.kfold <- cls.logistic %>% compareWithKFold()
+predict(cls.logistic, test) %>% summary()
+```
+
+```{r}
+res.logistic <- predsave(cls.logistic, test, "submission.logistic.csv")
+```
+
+## Bla bla bla
+
+```{r}
+cls.nb <- trainClassifier(NB, train)
+cls.nb.kfold <- cls.nb %>% compareWithKFold()
+```
+
+```{r}
+cls.mbab <- trainClassifier(MultiBoostAB, train)
+cls.mbab.kfold <- cls.mbab %>% compareWithKFold()
+```
+
+```{r}
+cls.boost <- trainClassifier(AdaBoostM1, train)
+cls.boost.kfold <- cls.boost %>% compareWithKFold()
+```
+
 ```{r}
 cls.c45 <- trainClassifier(J48, train)
 cls.c45.kfold <- cls.c45 %>% compareWithKFold()
@@ -185,13 +197,8 @@ cls.rf.kfold <- cls.rf %>% compareWithKFold()
 ```
 
 ```{r}
-#cls.smo <- trainClassifier(SMO, train)
+cls.smo <- trainClassifier(SMOLIM, train)
 #cls.smo.kfold <- cls.smo %>% compareWithKFold()
-```
-
-```{r}
-cls.nb <- trainClassifier(NB, train)
-cls.nb.kfold <- cls.nb %>% compareWithKFold()
 ```
 
 ```{r}
@@ -205,11 +212,6 @@ cls.bag.kfold <- cls.bag %>% compareWithKFold()
 ```
 
 ```{r}
-cls.boost <- trainClassifier(AdaBoostM1, train)
-cls.boost.kfold <- cls.boost %>% compareWithKFold()
-```
-
-```{r}
 cls.logit <- trainClassifier(LogitBoost, train)
 cls.logit.kfold <- cls.logit %>% compareWithKFold()
 ```
@@ -217,29 +219,41 @@ cls.logit.kfold <- cls.logit %>% compareWithKFold()
 # Test
 
 ```{r}
+res.nb <- predsave(cls.nb, test, "submission.bayes.csv")
+rm(cls.nb)
+```
+
+```{r}
 res.boost <- predsave(cls.boost, test, "submission.boost.csv")
+rm(cls.boost)
 ```
 
 ```{r}
 res.rf <- predsave(cls.rf, test, "submission.forest.csv")
+rm(cls.rf)
 ```
 
 ```{r}
 res.bag <- predsave(cls.bag, test, "submission.bag.csv")
-```
-
-```{r}
-res.nb <- predsave(cls.nb, test, "submission.bayes.csv")
+rm(cls.bag)
 ```
 
 ```{r}
 res.c45 <- predsave(cls.c45, test, "submission.c45.csv")
+rm(cls.c45)
 ```
 
 ```{r}
 res.logit <- predsave(cls.logit, test, "submission.logit.csv")
+rm(cls.logit)
 ```
 
 ```{r}
 res.mlp <- predsave(cls.mlp, test, "submission.mlp.csv")
+rm(cls.mlp)
+```
+
+```{r}
+res.smo <- predsave(cls.smo, test, "submission.smo.csv")
+#rm(cls.smo)
 ```
