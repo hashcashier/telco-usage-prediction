@@ -55,14 +55,62 @@ handsetOverview <- function(x) {
   x %>%
     group_by(HANDSET_NAME) %>% 
     summarise(
-      MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-      TARGETS = ifelse(!is.null(x$TARGET), mean(TARGET), -1),
-      USERS = length(unique(CONTRACT_KEY))) %>% 
+      MU_USAGE_MU = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+      USERS = length(unique(CONTRACT_KEY)),
+      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
+      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
     arrange(desc(USERS)) %>%
     head(n = 20)
 }
 cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
 ```
+
+```{r}
+rateplanOverview <- function(x) {
+  x %>%
+    group_by(RATE_PLAN) %>% 
+    summarise(
+      MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+      USERS = length(unique(CONTRACT_KEY)), 
+      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
+      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
+    arrange(desc(USERS)) %>%
+    head(n = 20)
+}
+cbind(rateplanOverview(train), rateplanOverview(test)) %>% kable(row.names = FALSE)
+```
+
+```{r}
+valuesegmentOverview <- function(x) {
+  x %>%
+    group_by(VALUE_SEGMENT) %>% 
+    summarise(
+      MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+      USERS = length(unique(CONTRACT_KEY)), 
+      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
+      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
+    arrange(desc(USERS)) %>%
+    head(n = 20)
+}
+cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.names = FALSE)
+```
+
+```{r}
+targetCor <- function(x) {
+  x %>% 
+    select(-c(CONTRACT_KEY, HANDSET_NAME, RATE_PLAN, GENDER, VALUE_SEGMENT)) %>% 
+    cor() %>% 
+    data.frame %>% select(TARGET)
+}
+targetCor(train)
+```
+
+```{r}
+mean(train$TARGET)
+```
+
+All zeros benchmark = 0.5
+Training data is skewed, while test data is symmetric.
 
 ## Feature Engineering
 
@@ -166,8 +214,8 @@ featureCrafting <- function(data, target = TRUE) {
   return(res)
 }
 
-train <- featureCrafting(TRUE)
-test <- featureCrafting(FALSE)
+train <- train %>% featureCrafting(TRUE)
+test <- test %>% featureCrafting(FALSE)
 ```
 
 # Daily Aggregates
@@ -183,21 +231,34 @@ daily_sum <- detailed %>%
   ungroup() %>%
   select(CONTRACT_KEY, DATE_KEY, USAGE, SESSIONS) %>%
   unique()
-```
 
-```{r}
 daily_usage <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "USAGE")
 colnames(daily_usage) <- paste("USAGE", colnames(daily_usage), sep = "_")
 daily_usage <- rename(daily_usage, CONTRACT_KEY = USAGE_CONTRACT_KEY)
-```
 
-```{r}
 daily_sessions <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "SESSIONS")
 colnames(daily_sessions) <- paste("SESSIONS", colnames(daily_sessions), sep = "_")
 daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
 ```
 
 # Roaming
+
+```{r}
+glimpse(roaming)
+summary(roaming)
+```
+
+```{r}
+roaming_usage <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "USAGE")
+colnames(roaming_usage) <- paste("ROAMING_USAGE", colnames(roaming_usage), sep = "_")
+roaming_usage <- rename(roaming_usage, CONTRACT_KEY = ROAMING_USAGE_CONTRACT_KEY)
+roaming_usage[is.na(roaming_usage)] <- 0
+
+roaming_sessions <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "SESSION_COUNT")
+colnames(roaming_sessions) <- paste("ROAMING_SESSIONS", colnames(roaming_sessions), sep = "_")
+roaming_sessions <- rename(roaming_sessions, CONTRACT_KEY = ROAMING_SESSIONS_CONTRACT_KEY)
+roaming_sessions[is.na(roaming_sessions)] <- 0
+```
 
 # Feature Selection
 
