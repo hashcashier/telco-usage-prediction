@@ -26,29 +26,185 @@ normalize <- function(x) {
 # Raw Data
 
 ```{r}
-monthly <- read.csv("train.csv")
-contracts <- read.csv("contract_ref.csv")
-dates <- read.csv("calendar_ref.csv")
 daily <- read.csv("daily_aggregate.csv")
-roaming <- read.csv("roaming_monthly.csv")
 testing <- read.csv("test.csv")
+dates <- read.csv("calendar_ref.csv")
 
-train <- merge(monthly, contracts)
-test <- merge(testing, contracts)
+#train <- merge(monthly, contracts)
+#test <- merge(testing, contracts)
 
-detailed <- daily %>%
-  rename(DATE_KEY = CALL_DATE_KEY) %>%
-  merge(dates)
+# detailed <- daily %>%
+#   rename(DATE_KEY = CALL_DATE_KEY) %>%
+#  merge(dates)
 ```
 
-# Training Data (Monthly Aggregate * Contract Reference)
+# Contract References
+```{r}
+contracts <- read.csv("contract_ref.csv")
+```
 
 ## Exploration
 
 ```{r}
-glimpse(train)
-train %>% summary()
+glimpse(contracts)
+contracts %>% summary()
 ```
+
+```{r}
+hist(contracts$AGE)
+hist(as.integer(contracts$GENDER))
+hist(as.integer(contracts$RATE_PLAN))
+hist(as.integer(contracts$VALUE_SEGMENT))
+handset_count <- length(levels(contracts$HANDSET_NAME))
+hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
+```
+
+## Transformation
+
+```{r}
+levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
+levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
+```
+
+## Outliers
+
+```{r}
+contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
+contracts %>% filter(AGE == 99) %>% nrow
+contracts %>% filter(AGE < 0) %>% nrow
+contracts$AGE[contracts$AGE == 99] <- NA
+contracts$AGE[contracts$AGE < 0] <- NA
+```
+
+# Monthly Aggregates
+
+```{r}
+monthly <- read.csv("train.csv")
+```
+
+## Exploration
+
+```{r}
+glimpse(monthly)
+monthly %>% summary()
+```
+
+```{r}
+session_count_resolution = 100
+usage_resolution = 100
+hist(monthly$X206_SESSION_COUNT, breaks = session_count_resolution)
+hist(monthly$X207_SESSION_COUNT, breaks = session_count_resolution)
+hist(monthly$X208_SESSION_COUNT, breaks = session_count_resolution)
+hist(monthly$X209_SESSION_COUNT, breaks = session_count_resolution)
+hist(monthly$X210_SESSION_COUNT, breaks = session_count_resolution)
+hist(monthly$X206_USAGE, breaks = usage_resolution)
+hist(monthly$X207_USAGE, breaks = usage_resolution)
+hist(monthly$X208_USAGE, breaks = usage_resolution)
+hist(monthly$X209_USAGE, breaks = usage_resolution)
+hist(monthly$X210_USAGE, breaks = usage_resolution)
+hist(monthly$TARGET)
+```
+
+## Outliers
+
+```{r}
+summary(monthly)
+```
+
+### Session Count
+
+```{r}
+session_count_threshold <- 6000
+monthly %>% 
+  filter(
+    X206_SESSION_COUNT > session_count_threshold 
+    | X207_SESSION_COUNT > session_count_threshold 
+    | X208_SESSION_COUNT > session_count_threshold
+    | X209_SESSION_COUNT > session_count_threshold
+    | X210_SESSION_COUNT > session_count_threshold) %>% 
+  nrow()
+```
+
+```{r}
+monthly$X206_SESSION_COUNT[monthly$X206_SESSION_COUNT > session_count_threshold] <- session_count_threshold
+monthly$X207_SESSION_COUNT[monthly$X207_SESSION_COUNT > session_count_threshold] <- session_count_threshold
+monthly$X208_SESSION_COUNT[monthly$X208_SESSION_COUNT > session_count_threshold] <- session_count_threshold
+monthly$X209_SESSION_COUNT[monthly$X209_SESSION_COUNT > session_count_threshold] <- session_count_threshold
+monthly$X210_SESSION_COUNT[monthly$X210_SESSION_COUNT > session_count_threshold] <- session_count_threshold
+```
+
+### Usage
+
+```{r}
+usage_threshold <- 20000
+monthly %>% 
+  filter(
+    X206_USAGE > usage_threshold 
+    | X207_USAGE > usage_threshold 
+    | X208_USAGE > usage_threshold
+    | X209_USAGE > usage_threshold
+    | X210_USAGE > usage_threshold) %>% 
+  nrow()
+```
+
+```{r}
+monthly$X206_USAGE[monthly$X206_USAGE > usage_threshold] <- usage_threshold
+monthly$X207_USAGE[monthly$X207_USAGE > usage_threshold] <- usage_threshold
+monthly$X208_USAGE[monthly$X208_USAGE > usage_threshold] <- usage_threshold
+monthly$X209_USAGE[monthly$X209_USAGE > usage_threshold] <- usage_threshold
+monthly$X210_USAGE[monthly$X210_USAGE > usage_threshold] <- usage_threshold
+```
+
+# Roaming
+
+```{r}
+roaming <- read.csv("roaming_monthly.csv")
+```
+
+## Exploration
+
+```{r}
+glimpse(roaming)
+summary(roaming)
+```
+
+## Outliers
+
+```{r}
+hist(roaming$CALL_MONTH_KEY)
+hist(roaming$USAGE)
+hist(roaming$SESSION_COUNT)
+```
+
+### Session Count
+
+```{r}
+roaming_session_threshold <- 1000
+roaming %>% filter(SESSION_COUNT > roaming_session_threshold) %>% nrow
+```
+
+```{r}
+roaming$SESSION_COUNT[roaming$SESSION_COUNT > roaming_session_threshold] <- roaming_session_threshold
+```
+
+## Transformation
+
+```{r}
+roaming_usage <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "USAGE")
+colnames(roaming_usage) <- paste("ROAMING_USAGE", colnames(roaming_usage), sep = "_")
+roaming_usage <- rename(roaming_usage, CONTRACT_KEY = ROAMING_USAGE_CONTRACT_KEY)
+roaming_usage[is.na(roaming_usage)] <- 0
+
+roaming_sessions <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "SESSION_COUNT")
+colnames(roaming_sessions) <- paste("ROAMING_SESSIONS", colnames(roaming_sessions), sep = "_")
+roaming_sessions <- rename(roaming_sessions, CONTRACT_KEY = ROAMING_SESSIONS_CONTRACT_KEY)
+roaming_sessions[is.na(roaming_sessions)] <- 0
+
+roaming_data <- merge(roaming_usage, roaming_sessions)
+rm(roaming_usage, roaming_sessions)
+```
+
+# Train: Monthly * Contracts
 
 ```{r}
 handsetOverview <- function(x) {
@@ -111,12 +267,6 @@ mean(train$TARGET)
 
 All zeros benchmark = 0.5
 Training data is skewed, while test data is symmetric.
-
-## Outliers
-
-```{r}
-
-```
 
 ## Feature Engineering
 
@@ -247,29 +397,6 @@ colnames(daily_sessions) <- paste("SESSIONS", colnames(daily_sessions), sep = "_
 daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
 
 daily_aggr <- merge(daily_usage, daily_sessions)
-```
-
-# Roaming
-
-## Exploration
-
-```{r}
-glimpse(roaming)
-summary(roaming)
-```
-
-## Data Munging
-
-```{r}
-roaming_usage <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "USAGE")
-colnames(roaming_usage) <- paste("ROAMING_USAGE", colnames(roaming_usage), sep = "_")
-roaming_usage <- rename(roaming_usage, CONTRACT_KEY = ROAMING_USAGE_CONTRACT_KEY)
-roaming_usage[is.na(roaming_usage)] <- 0
-
-roaming_sessions <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "SESSION_COUNT")
-colnames(roaming_sessions) <- paste("ROAMING_SESSIONS", colnames(roaming_sessions), sep = "_")
-roaming_sessions <- rename(roaming_sessions, CONTRACT_KEY = ROAMING_SESSIONS_CONTRACT_KEY)
-roaming_sessions[is.na(roaming_sessions)] <- 0
 ```
 
 # Feature Selection
