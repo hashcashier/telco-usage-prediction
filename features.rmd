@@ -26,16 +26,8 @@ normalize <- function(x) {
 # Raw Data
 
 ```{r}
-daily <- read.csv("daily_aggregate.csv")
-testing <- read.csv("test.csv")
-dates <- read.csv("calendar_ref.csv")
-
 #train <- merge(monthly, contracts)
 #test <- merge(testing, contracts)
-
-# detailed <- daily %>%
-#   rename(DATE_KEY = CALL_DATE_KEY) %>%
-#  merge(dates)
 ```
 
 # Contract References
@@ -76,10 +68,11 @@ contracts$AGE[contracts$AGE == 99] <- NA
 contracts$AGE[contracts$AGE < 0] <- NA
 ```
 
-# Monthly Aggregates
+# Monthly Aggregates: train/test
 
 ```{r}
 monthly <- read.csv("train.csv")
+testing <- read.csv("test.csv")
 ```
 
 ## Exploration
@@ -126,11 +119,15 @@ monthly %>%
 ```
 
 ```{r}
-monthly$X206_SESSION_COUNT[monthly$X206_SESSION_COUNT > session_count_threshold] <- session_count_threshold
-monthly$X207_SESSION_COUNT[monthly$X207_SESSION_COUNT > session_count_threshold] <- session_count_threshold
-monthly$X208_SESSION_COUNT[monthly$X208_SESSION_COUNT > session_count_threshold] <- session_count_threshold
-monthly$X209_SESSION_COUNT[monthly$X209_SESSION_COUNT > session_count_threshold] <- session_count_threshold
-monthly$X210_SESSION_COUNT[monthly$X210_SESSION_COUNT > session_count_threshold] <- session_count_threshold
+cap_session_count <- function(dataset, cap) {
+  dataset$X206_SESSION_COUNT[dataset$X206_SESSION_COUNT > cap] <- cap
+  dataset$X207_SESSION_COUNT[dataset$X207_SESSION_COUNT > cap] <- cap
+  dataset$X208_SESSION_COUNT[dataset$X208_SESSION_COUNT > cap] <- cap
+  dataset$X209_SESSION_COUNT[dataset$X209_SESSION_COUNT > cap] <- cap
+  dataset$X210_SESSION_COUNT[dataset$X210_SESSION_COUNT > cap] <- cap
+}
+cap_session_count(monthly, session_count_threshold)
+cap_session_count(testing, session_count_threshold)
 ```
 
 ### Usage
@@ -148,11 +145,15 @@ monthly %>%
 ```
 
 ```{r}
-monthly$X206_USAGE[monthly$X206_USAGE > usage_threshold] <- usage_threshold
-monthly$X207_USAGE[monthly$X207_USAGE > usage_threshold] <- usage_threshold
-monthly$X208_USAGE[monthly$X208_USAGE > usage_threshold] <- usage_threshold
-monthly$X209_USAGE[monthly$X209_USAGE > usage_threshold] <- usage_threshold
-monthly$X210_USAGE[monthly$X210_USAGE > usage_threshold] <- usage_threshold
+cap_usage <- function(dataset, cap) {
+  dataset$X206_USAGE[dataset$X206_USAGE > cap] <- cap
+  dataset$X207_USAGE[dataset$X207_USAGE > cap] <- cap
+  dataset$X208_USAGE[dataset$X208_USAGE > cap] <- cap
+  dataset$X209_USAGE[dataset$X209_USAGE > cap] <- cap
+  dataset$X210_USAGE[dataset$X210_USAGE > cap] <- cap
+}
+cap_usage(monthly, usage_threshold)
+cap_usage(testing, usage_threshold)
 ```
 
 # Roaming
@@ -203,6 +204,80 @@ roaming_sessions[is.na(roaming_sessions)] <- 0
 roaming_data <- merge(roaming_usage, roaming_sessions)
 rm(roaming_usage, roaming_sessions)
 ```
+
+# Daily Aggregate
+
+```{r}
+daily <- read.csv("daily_aggregate.csv")
+dates <- read.csv("calendar_ref.csv")
+daily <- daily %>%
+  rename(DATE_KEY = CALL_DATE_KEY) %>%
+  merge(dates) %>%
+  select(-c(MONTH_KEY, MONTH_NAME))
+```
+
+## Exploration
+
+```{r}
+glimpse(daily)
+daily %>% summary()
+```
+
+## Outliers
+
+```{r}
+hist(daily$TOTAL_CONSUMPTION, breaks = 100)
+hist(daily$NO_OF_SESSIONS, breaks = 100)
+hist(as.integer(daily$FULL_DATE))
+hist(as.integer(daily$ROAMING_FLAG))
+```
+
+### Usage
+```{r}
+daily_usage_threshold <- 1*1024^3
+daily %>% 
+  filter(TOTAL_CONSUMPTION > daily_usage_threshold) %>%
+  nrow()
+```
+
+```{r}
+daily$TOTAL_CONSUMPTION[daily$TOTAL_CONSUMPTION > daily_usage_threshold] <- daily_usage_threshold
+```
+
+### Session Count
+```{r}
+daily_session_threshold <- 150
+daily %>%
+  filter(NO_OF_SESSIONS > daily_session_threshold) %>%
+  nrow()
+```
+
+```{r}
+daily$NO_OF_SESSIONS[daily$NO_OF_SESSIONS > daily_session_threshold] <- daily_session_threshold
+```
+
+## Transformation
+
+```{r}
+daily_sum <- daily %>%
+  group_by(CONTRACT_KEY, DATE_KEY) %>%
+  mutate(USAGE = sum(TOTAL_CONSUMPTION), SESSIONS = sum(NO_OF_SESSIONS)) %>%
+  ungroup() %>%
+  select(CONTRACT_KEY, DATE_KEY, USAGE, SESSIONS) %>%
+  unique()
+
+daily_usage <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "USAGE")
+colnames(daily_usage) <- paste("USAGE", colnames(daily_usage), sep = "_")
+daily_usage <- rename(daily_usage, CONTRACT_KEY = USAGE_CONTRACT_KEY)
+
+daily_sessions <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "SESSIONS")
+colnames(daily_sessions) <- paste("SESSIONS", colnames(daily_sessions), sep = "_")
+daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
+
+daily <- merge(daily_usage, daily_sessions)
+rm(daily_sum, daily_usage, daily_sessions)
+```
+
 
 # Train: Monthly * Contracts
 
@@ -374,30 +449,6 @@ train <- train %>% featureCrafting(TRUE)
 test <- test %>% featureCrafting(FALSE)
 ```
 
-# Daily Aggregates
-
-## Exploration
-
-## Feature Engineering
-
-```{r}
-daily_sum <- detailed %>%
-  group_by(CONTRACT_KEY, DATE_KEY) %>%
-  mutate(USAGE = sum(TOTAL_CONSUMPTION), SESSIONS = sum(NO_OF_SESSIONS)) %>%
-  ungroup() %>%
-  select(CONTRACT_KEY, DATE_KEY, USAGE, SESSIONS) %>%
-  unique()
-
-daily_usage <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "USAGE")
-colnames(daily_usage) <- paste("USAGE", colnames(daily_usage), sep = "_")
-daily_usage <- rename(daily_usage, CONTRACT_KEY = USAGE_CONTRACT_KEY)
-
-daily_sessions <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "SESSIONS")
-colnames(daily_sessions) <- paste("SESSIONS", colnames(daily_sessions), sep = "_")
-daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
-
-daily_aggr <- merge(daily_usage, daily_sessions)
-```
 
 # Feature Selection
 
