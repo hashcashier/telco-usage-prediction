@@ -112,6 +112,12 @@ mean(train$TARGET)
 All zeros benchmark = 0.5
 Training data is skewed, while test data is symmetric.
 
+## Outliers
+
+```{r}
+
+```
+
 ## Feature Engineering
 
 ```{r}
@@ -239,14 +245,20 @@ daily_usage <- rename(daily_usage, CONTRACT_KEY = USAGE_CONTRACT_KEY)
 daily_sessions <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "SESSIONS")
 colnames(daily_sessions) <- paste("SESSIONS", colnames(daily_sessions), sep = "_")
 daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
+
+daily_aggr <- merge(daily_usage, daily_sessions)
 ```
 
 # Roaming
+
+## Exploration
 
 ```{r}
 glimpse(roaming)
 summary(roaming)
 ```
+
+## Data Munging
 
 ```{r}
 roaming_usage <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "USAGE")
