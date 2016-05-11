@@ -456,8 +456,18 @@ binaryIndicators <- function(dataset) {
   )
 
   dataset <- dataset %>%
-    select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN, HANDSET_NAME)) %>%
+    select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN)) %>%
     cbind(binary_indicators)
+}
+```
+
+```{r}
+handsetTargetData <- train %>%
+  group_by(HANDSET_NAME) %>%
+  summarise(HANDSET_TARGET_RATIO = sum(TARGET)/length(CONTRACT_KEY))
+handsetTargetRatio <- function(dataset) {
+  merge(dataset, handsetTargetData, all.x = TRUE) %>%
+    select(-HANDSET_NAME)
 }
 ```
 
@@ -470,13 +480,13 @@ featureEngineer <- function(data) {
   data <- usagePerSession(data)
   data <- normalizeVariables(data)
   data <- binaryIndicators(data)
+  data <- handsetTargetRatio(data)
   return(data)
 }
 
 train <- train %>% featureEngineer()
 test <- test %>% featureEngineer()
 ```
-
 
 # Feature Extraction
 

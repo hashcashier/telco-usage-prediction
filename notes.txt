@@ -1,0 +1,13 @@
+mean, max, min
+
+session_count
+
+Log transformation
+
+For right skewed distribution, we take square / cube root or logarithm of variable and for left skewed, we take square / cube or exponential of variables.
+
+Binning handsets
+
+Daily ROAMING/LOCAL
+
+PCA/LDA/ICA
