@@ -57,6 +57,9 @@ levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, 
 contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
 contracts %>% filter(AGE == 99) %>% nrow
 contracts %>% filter(AGE < 0) %>% nrow
+```
+
+```{r}
 contracts$AGE[contracts$AGE == 99] <- NA
 contracts$AGE[contracts$AGE < 0] <- NA
 ```
@@ -76,19 +79,40 @@ monthly %>% summary()
 ```
 
 ```{r}
-session_count_resolution <- 100
-usage_resolution <- 100
-hist(monthly$X206_SESSION_COUNT, breaks = session_count_resolution)
-hist(monthly$X207_SESSION_COUNT, breaks = session_count_resolution)
-hist(monthly$X208_SESSION_COUNT, breaks = session_count_resolution)
-hist(monthly$X209_SESSION_COUNT, breaks = session_count_resolution)
-hist(monthly$X210_SESSION_COUNT, breaks = session_count_resolution)
-hist(monthly$X206_USAGE, breaks = usage_resolution)
-hist(monthly$X207_USAGE, breaks = usage_resolution)
-hist(monthly$X208_USAGE, breaks = usage_resolution)
-hist(monthly$X209_USAGE, breaks = usage_resolution)
-hist(monthly$X210_USAGE, breaks = usage_resolution)
-hist(monthly$TARGET)
+hist(monthly$X206_SESSION_COUNT, breaks = 100)
+hist(monthly$X206_USAGE, breaks = 100)
+```
+
+## Transformation
+
+```{r}
+centerScale <- function(x) {
+  return((x - mean(x))/sd(x))
+}
+powerCenterScale <- function(x) {
+  return(centerScale(sqrt(x)))
+}
+logCenterScale <- function(x) {
+  return(centerScale(log(x)))
+}
+powerCenterScaleLogAggr <- function(dataset) {
+  dataset$X206_SESSION_COUNT <- logCenterScale(dataset$X206_SESSION_COUNT)
+  dataset$X207_SESSION_COUNT <- logCenterScale(dataset$X207_SESSION_COUNT)
+  dataset$X208_SESSION_COUNT <- logCenterScale(dataset$X208_SESSION_COUNT)
+  dataset$X209_SESSION_COUNT <- logCenterScale(dataset$X209_SESSION_COUNT)
+  dataset$X210_SESSION_COUNT <- logCenterScale(dataset$X210_SESSION_COUNT)
+  dataset$X206_USAGE <- powerCenterScale(dataset$X206_USAGE)
+  dataset$X207_USAGE <- powerCenterScale(dataset$X207_USAGE)
+  dataset$X208_USAGE <- powerCenterScale(dataset$X208_USAGE)
+  dataset$X209_USAGE <- powerCenterScale(dataset$X209_USAGE)
+  dataset$X210_USAGE <- powerCenterScale(dataset$X210_USAGE)
+  return(dataset)
+}
+```
+
+```{r}
+monthly <- powerCenterScaleLogAggr(monthly)
+testing <- powerCenterScaleLogAggr(testing)
 ```
 
 ## Outliers
@@ -99,55 +123,7 @@ summary(monthly)
 
 ### Session Count
 
-```{r}
-session_count_threshold <- 6000
-monthly %>% 
-  filter(
-    X206_SESSION_COUNT > session_count_threshold 
-    | X207_SESSION_COUNT > session_count_threshold 
-    | X208_SESSION_COUNT > session_count_threshold
-    | X209_SESSION_COUNT > session_count_threshold
-    | X210_SESSION_COUNT > session_count_threshold) %>% 
-  nrow()
-```
-
-```{r}
-cap_session_count <- function(dataset, cap) {
-  dataset$X206_SESSION_COUNT[dataset$X206_SESSION_COUNT > cap] <- cap
-  dataset$X207_SESSION_COUNT[dataset$X207_SESSION_COUNT > cap] <- cap
-  dataset$X208_SESSION_COUNT[dataset$X208_SESSION_COUNT > cap] <- cap
-  dataset$X209_SESSION_COUNT[dataset$X209_SESSION_COUNT > cap] <- cap
-  dataset$X210_SESSION_COUNT[dataset$X210_SESSION_COUNT > cap] <- cap
-}
-cap_session_count(monthly, session_count_threshold)
-cap_session_count(testing, session_count_threshold)
-```
-
 ### Usage
-
-```{r}
-usage_threshold <- 20000
-monthly %>% 
-  filter(
-    X206_USAGE > usage_threshold 
-    | X207_USAGE > usage_threshold 
-    | X208_USAGE > usage_threshold
-    | X209_USAGE > usage_threshold
-    | X210_USAGE > usage_threshold) %>% 
-  nrow()
-```
-
-```{r}
-cap_usage <- function(dataset, cap) {
-  dataset$X206_USAGE[dataset$X206_USAGE > cap] <- cap
-  dataset$X207_USAGE[dataset$X207_USAGE > cap] <- cap
-  dataset$X208_USAGE[dataset$X208_USAGE > cap] <- cap
-  dataset$X209_USAGE[dataset$X209_USAGE > cap] <- cap
-  dataset$X210_USAGE[dataset$X210_USAGE > cap] <- cap
-}
-cap_usage(monthly, usage_threshold)
-cap_usage(testing, usage_threshold)
-```
 
 # Roaming
 
@@ -160,25 +136,8 @@ roaming <- read.csv("roaming_monthly.csv")
 ```{r}
 glimpse(roaming)
 summary(roaming)
-```
-
-## Outliers
-
-```{r}
-hist(roaming$CALL_MONTH_KEY)
-hist(roaming$USAGE)
-hist(roaming$SESSION_COUNT)
-```
-
-### Session Count
-
-```{r}
-roaming_session_threshold <- 1000
-roaming %>% filter(SESSION_COUNT > roaming_session_threshold) %>% nrow
-```
-
-```{r}
-roaming$SESSION_COUNT[roaming$SESSION_COUNT > roaming_session_threshold] <- roaming_session_threshold
+hist(roaming$USAGE, breaks = 100)
+hist(roaming$SESSION_COUNT, breaks = 100)
 ```
 
 ## Transformation
@@ -198,6 +157,34 @@ roaming <- merge(roaming_usage, roaming_sessions)
 rm(roaming_usage, roaming_sessions)
 ```
 
+```{r}
+powerCenterScaleRoam <- function(dataset) {
+  dataset$ROAMING_USAGE_206 <- powerCenterScale(dataset$ROAMING_USAGE_206)
+  dataset$ROAMING_USAGE_207 <- powerCenterScale(dataset$ROAMING_USAGE_207)
+  dataset$ROAMING_USAGE_208 <- powerCenterScale(dataset$ROAMING_USAGE_208)
+  dataset$ROAMING_USAGE_209 <- powerCenterScale(dataset$ROAMING_USAGE_209)
+  dataset$ROAMING_USAGE_210 <- powerCenterScale(dataset$ROAMING_USAGE_210)
+  dataset$ROAMING_SESSIONS_206 <- powerCenterScale(dataset$ROAMING_SESSIONS_206)
+  dataset$ROAMING_SESSIONS_207 <- powerCenterScale(dataset$ROAMING_SESSIONS_207)
+  dataset$ROAMING_SESSIONS_208 <- powerCenterScale(dataset$ROAMING_SESSIONS_208)
+  dataset$ROAMING_SESSIONS_209 <- powerCenterScale(dataset$ROAMING_SESSIONS_209)
+  dataset$ROAMING_SESSIONS_210 <- powerCenterScale(dataset$ROAMING_SESSIONS_210)
+  return(dataset)
+}
+```
+
+```{r}
+roaming <- powerCenterScaleRoam(roaming)
+```
+
+## Outliers
+
+```{r}
+hist(roaming$CALL_MONTH_KEY)
+hist(roaming$USAGE)
+hist(roaming$SESSION_COUNT)
+```
+
 # Daily Aggregate
 
 ```{r}
@@ -214,39 +201,6 @@ daily <- daily %>%
 ```{r}
 glimpse(daily)
 daily %>% summary()
-```
-
-## Outliers
-
-```{r}
-hist(daily$TOTAL_CONSUMPTION, breaks = 100)
-hist(daily$NO_OF_SESSIONS, breaks = 100)
-hist(as.integer(daily$FULL_DATE))
-hist(as.integer(daily$ROAMING_FLAG))
-```
-
-### Usage
-```{r}
-daily_usage_threshold <- 1*1024^3
-daily %>% 
-  filter(TOTAL_CONSUMPTION > daily_usage_threshold) %>%
-  nrow()
-```
-
-```{r}
-daily$TOTAL_CONSUMPTION[daily$TOTAL_CONSUMPTION > daily_usage_threshold] <- daily_usage_threshold
-```
-
-### Session Count
-```{r}
-daily_session_threshold <- 150
-daily %>%
-  filter(NO_OF_SESSIONS > daily_session_threshold) %>%
-  nrow()
-```
-
-```{r}
-daily$NO_OF_SESSIONS[daily$NO_OF_SESSIONS > daily_session_threshold] <- daily_session_threshold
 ```
 
 ## Transformation
@@ -271,6 +225,14 @@ daily <- merge(daily_usage, daily_sessions)
 rm(daily_sum, daily_usage, daily_sessions)
 ```
 
+## Outliers
+
+```{r}
+hist(daily$TOTAL_CONSUMPTION, breaks = 100)
+hist(daily$NO_OF_SESSIONS, breaks = 100)
+hist(as.integer(daily$FULL_DATE))
+hist(as.integer(daily$ROAMING_FLAG))
+```
 
 # Combined: Monthly * Contracts * Roaming * Daily
 
