@@ -21,6 +21,15 @@ normalize <- function(x) {
   upper = max(x, na.rm = TRUE)
   return((x - lower)/(upper - lower))
 }
+centerScale <- function(x) {
+  return((x - mean(x, na.rm = TRUE))/sd(x, na.rm = TRUE))
+}
+powerCenterScale <- function(x) {
+  return(centerScale(sqrt(x)))
+}
+logCenterScale <- function(x) {
+  return(centerScale(log(x)))
+}
 ```
 
 # Contract References
@@ -44,13 +53,6 @@ handset_count <- length(levels(contracts$HANDSET_NAME))
 hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
 ```
 
-## Transformation
-
-```{r}
-levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
-levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
-```
-
 ## Outliers
 
 ```{r}
@@ -61,7 +63,15 @@ contracts %>% filter(AGE < 0) %>% nrow
 
 ```{r}
 contracts$AGE[contracts$AGE == 99] <- NA
-contracts$AGE[contracts$AGE < 0] <- NA
+contracts$AGE[contracts$AGE <= 0] <- NA
+```
+
+## Transformation
+
+```{r}
+levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
+levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
+contracts$AGE <- powerCenterScale(contracts$AGE)
 ```
 
 # Monthly Aggregates: train/test
@@ -83,34 +93,109 @@ hist(monthly$X206_SESSION_COUNT, breaks = 100)
 hist(monthly$X206_USAGE, breaks = 100)
 ```
 
+## Feature Engineering
+
+```{r}
+averageUsage <- function(dataset) {
+  dataset <- dataset %>%
+    mutate(AVG_USAGE = (X206_USAGE + X207_USAGE + X208_USAGE + X209_USAGE + X210_USAGE)/5) %>%
+    mutate(X206_USAGE_DIFF = (X206_USAGE - AVG_USAGE)) %>%
+    mutate(X207_USAGE_DIFF = (X207_USAGE - AVG_USAGE)) %>%
+    mutate(X208_USAGE_DIFF = (X208_USAGE - AVG_USAGE)) %>%
+    mutate(X209_USAGE_DIFF = (X209_USAGE - AVG_USAGE)) %>%
+    mutate(X210_USAGE_DIFF = (X210_USAGE - AVG_USAGE))
+}
+train <- averageUsage(train)
+test <- averageUsage(test)
+```
+
+```{r}
+averageSess <- function(dataset) {
+  dataset <- dataset %>%
+    mutate(AVG_SESS = (X206_SESSION_COUNT+X207_SESSION_COUNT+X208_SESSION_COUNT+X209_SESSION_COUNT+X210_SESSION_COUNT)/5) %>%
+    mutate(X206_SESS_DIFF = (X206_SESSION_COUNT - AVG_SESS)) %>%
+    mutate(X207_SESS_DIFF = (X207_SESSION_COUNT - AVG_SESS)) %>%
+    mutate(X208_SESS_DIFF = (X208_SESSION_COUNT - AVG_SESS)) %>%
+    mutate(X209_SESS_DIFF = (X209_SESSION_COUNT - AVG_SESS)) %>%
+    mutate(X210_SESS_DIFF = (X210_SESSION_COUNT - AVG_SESS))
+}
+train <- averageSess(train)
+test <- averageSess(test)
+```
+
+```{r}
+overUse <- function(dataset) {
+  dataset <- dataset %>%
+    mutate(X206_TARGET = X206_USAGE_DIFF > 500) %>%
+    mutate(X207_TARGET = X207_USAGE_DIFF > 500) %>%
+    mutate(X208_TARGET = X208_USAGE_DIFF > 500) %>%
+    mutate(X209_TARGET = X209_USAGE_DIFF > 500) %>%
+    mutate(X210_TARGET = X210_USAGE_DIFF > 500)
+}
+train <- overUse(train)
+test <- overUse(test)
+```
+
+```{r}
+underUse <- function(dataset) {
+  dataset <- dataset %>%
+    mutate(X206_TARGET_INV = X206_USAGE_DIFF < -500) %>%
+    mutate(X207_TARGET_INV = X207_USAGE_DIFF < -500) %>%
+    mutate(X208_TARGET_INV = X208_USAGE_DIFF < -500) %>%
+    mutate(X209_TARGET_INV = X209_USAGE_DIFF < -500) %>%
+    mutate(X210_TARGET_INV = X210_USAGE_DIFF < -500)
+}
+train <- underUse(train)
+test <- underUse(test)
+```
+
+```{r}
+usagePerSession <- function(dataset) {
+  dataset <- dataset %>%
+    mutate(AVG_USAGE_SESS = AVG_USAGE/AVG_SESS) %>%
+    mutate(X206_USAGE_SESS = X206_USAGE/X206_SESSION_COUNT) %>%
+    mutate(X207_USAGE_SESS = X207_USAGE/X207_SESSION_COUNT) %>%
+    mutate(X208_USAGE_SESS = X208_USAGE/X208_SESSION_COUNT) %>%
+    mutate(X209_USAGE_SESS = X209_USAGE/X209_SESSION_COUNT) %>%
+    mutate(X210_USAGE_SESS = X210_USAGE/X210_SESSION_COUNT)
+}
+train <- usagePerSession(train)
+test <- usagePerSession(test)
+```
 ## Transformation
 
 ```{r}
-centerScale <- function(x) {
-  return((x - mean(x))/sd(x))
-}
-powerCenterScale <- function(x) {
-  return(centerScale(sqrt(x)))
-}
-logCenterScale <- function(x) {
-  return(centerScale(log(x)))
-}
 powerCenterScaleLogAggr <- function(dataset) {
   dataset$X206_SESSION_COUNT <- logCenterScale(dataset$X206_SESSION_COUNT)
   dataset$X207_SESSION_COUNT <- logCenterScale(dataset$X207_SESSION_COUNT)
   dataset$X208_SESSION_COUNT <- logCenterScale(dataset$X208_SESSION_COUNT)
   dataset$X209_SESSION_COUNT <- logCenterScale(dataset$X209_SESSION_COUNT)
   dataset$X210_SESSION_COUNT <- logCenterScale(dataset$X210_SESSION_COUNT)
-  dataset$X206_USAGE <- powerCenterScale(dataset$X206_USAGE)
-  dataset$X207_USAGE <- powerCenterScale(dataset$X207_USAGE)
-  dataset$X208_USAGE <- powerCenterScale(dataset$X208_USAGE)
-  dataset$X209_USAGE <- powerCenterScale(dataset$X209_USAGE)
-  dataset$X210_USAGE <- powerCenterScale(dataset$X210_USAGE)
+  dataset$X206_USAGE <-         powerCenterScale(dataset$X206_USAGE)
+  dataset$X207_USAGE <-         powerCenterScale(dataset$X207_USAGE)
+  dataset$X208_USAGE <-         powerCenterScale(dataset$X208_USAGE)
+  dataset$X209_USAGE <-         powerCenterScale(dataset$X209_USAGE)
+  dataset$X210_USAGE <-         powerCenterScale(dataset$X210_USAGE)
+  dataset$AVG_USAGE <-          powerCenterScale(dataset$AVG_USAGE)
+  dataset$X206_USAGE_DIFF <-    centerScale(dataset$X206_USAGE_DIFF)
+  dataset$X207_USAGE_DIFF <-    centerScale(dataset$X207_USAGE_DIFF)
+  dataset$X208_USAGE_DIFF <-    centerScale(dataset$X208_USAGE_DIFF)
+  dataset$X209_USAGE_DIFF <-    centerScale(dataset$X209_USAGE_DIFF)
+  dataset$X210_USAGE_DIFF <-    centerScale(dataset$X210_USAGE_DIFF)
+  dataset$AVG_SESS <-           logCenterScale(dataset$AVG_SESS)
+  dataset$X206_SESS_DIFF <-     centerScale(dataset$X206_SESS_DIFF)
+  dataset$X207_SESS_DIFF <-     centerScale(dataset$X207_SESS_DIFF)
+  dataset$X208_SESS_DIFF <-     centerScale(dataset$X208_SESS_DIFF)
+  dataset$X209_SESS_DIFF <-     centerScale(dataset$X209_SESS_DIFF)
+  dataset$X210_SESS_DIFF <-     centerScale(dataset$X210_SESS_DIFF)
+  dataset$AVG_USAGE_SESS <-     powerCenterScale(dataset$AVG_USAGE_SESS)
+  dataset$X206_USAGE_SESS <-    powerCenterScale(dataset$X206_USAGE_SESS)
+  dataset$X207_USAGE_SESS <-    powerCenterScale(dataset$X207_USAGE_SESS)
+  dataset$X208_USAGE_SESS <-    powerCenterScale(dataset$X208_USAGE_SESS)
+  dataset$X209_USAGE_SESS <-    powerCenterScale(dataset$X209_USAGE_SESS)
+  dataset$X210_USAGE_SESS <-    powerCenterScale(dataset$X210_USAGE_SESS)
   return(dataset)
 }
-```
-
-```{r}
 monthly <- powerCenterScaleLogAggr(monthly)
 testing <- powerCenterScaleLogAggr(testing)
 ```
@@ -239,9 +324,9 @@ hist(as.integer(daily$ROAMING_FLAG))
 ```{r}
 combine <- function(dataset) {
   dataset %>%
-    merge(contracts, all.x = TRUE) %>%
-    merge(roaming, all.x = TRUE) %>%
-    merge(daily, all.x = TRUE)
+    merge(contracts, all.x = TRUE) #%>%
+    #merge(roaming, all.x = TRUE) #%>%
+    #%>% merge(daily, all.x = TRUE)
 }
 ```
 
@@ -314,97 +399,7 @@ mean(train$TARGET)
 All zeros benchmark = 0.5
 Training data is skewed, while test data is symmetric.
 
-## Feature Engineering
-
-```{r}
-averageUsage <- function(dataset) {
-  dataset <- dataset %>%
-    mutate(AVG_USAGE = (X206_USAGE + X207_USAGE + X208_USAGE + X209_USAGE + X210_USAGE)/5) %>%
-    mutate(X206_USAGE_DIFF = X206_USAGE - AVG_USAGE) %>%
-    mutate(X207_USAGE_DIFF = X207_USAGE - AVG_USAGE) %>%
-    mutate(X208_USAGE_DIFF = X208_USAGE - AVG_USAGE) %>%
-    mutate(X209_USAGE_DIFF = X209_USAGE - AVG_USAGE) %>%
-    mutate(X210_USAGE_DIFF = X210_USAGE - AVG_USAGE)
-}
-```
-
-```{r}
-averageSess <- function(dataset) {
-  dataset <- dataset %>%
-    mutate(AVG_SESS = (X206_SESSION_COUNT+X207_SESSION_COUNT+X208_SESSION_COUNT+X209_SESSION_COUNT+X210_SESSION_COUNT)/5) %>%
-    mutate(X206_SESS_DIFF = X206_SESSION_COUNT - AVG_SESS) %>%
-    mutate(X207_SESS_DIFF = X207_SESSION_COUNT - AVG_SESS) %>%
-    mutate(X208_SESS_DIFF = X208_SESSION_COUNT - AVG_SESS) %>%
-    mutate(X209_SESS_DIFF = X209_SESSION_COUNT - AVG_SESS) %>%
-    mutate(X210_SESS_DIFF = X210_SESSION_COUNT - AVG_SESS)
-}
-```
-
-```{r}
-overUse <- function(dataset) {
-  dataset <- dataset %>%
-    mutate(X206_TARGET = X206_USAGE_DIFF > 500) %>%
-    mutate(X207_TARGET = X207_USAGE_DIFF > 500) %>%
-    mutate(X208_TARGET = X208_USAGE_DIFF > 500) %>%
-    mutate(X209_TARGET = X209_USAGE_DIFF > 500) %>%
-    mutate(X210_TARGET = X210_USAGE_DIFF > 500)
-}
-```
-
-```{r}
-underUse <- function(dataset) {
-  dataset <- dataset %>%
-    mutate(X206_TARGET_INV = X206_USAGE_DIFF < -500) %>%
-    mutate(X207_TARGET_INV = X207_USAGE_DIFF < -500) %>%
-    mutate(X208_TARGET_INV = X208_USAGE_DIFF < -500) %>%
-    mutate(X209_TARGET_INV = X209_USAGE_DIFF < -500) %>%
-    mutate(X210_TARGET_INV = X210_USAGE_DIFF < -500)
-}
-```
-
-```{r}
-usagePerSession <- function(dataset) {
-  dataset <- dataset %>%
-    mutate(X206_USAGE_SESS = X206_USAGE/X206_SESSION_COUNT) %>%
-    mutate(X207_USAGE_SESS = X207_USAGE/X207_SESSION_COUNT) %>%
-    mutate(X208_USAGE_SESS = X208_USAGE/X208_SESSION_COUNT) %>%
-    mutate(X209_USAGE_SESS = X209_USAGE/X209_SESSION_COUNT) %>%
-    mutate(X210_USAGE_SESS = X210_USAGE/X210_SESSION_COUNT)
-}
-```
-
-```{r}
-normalizeVariables <- function(dataset) {
-  dataset <- dataset %>%
-    mutate(AGE = normalize(AGE)) %>%
-    mutate(AVG_USAGE = normalize(AVG_USAGE)) %>%
-    mutate(AVG_SESS = normalize(AVG_SESS)) %>%
-    mutate(X206_SESSION_COUNT = normalize(X206_SESSION_COUNT)) %>%
-    mutate(X207_SESSION_COUNT = normalize(X207_SESSION_COUNT)) %>%
-    mutate(X208_SESSION_COUNT = normalize(X208_SESSION_COUNT)) %>%
-    mutate(X209_SESSION_COUNT = normalize(X209_SESSION_COUNT)) %>%
-    mutate(X210_SESSION_COUNT = normalize(X210_SESSION_COUNT)) %>%
-    mutate(X206_USAGE = normalize(X206_USAGE)) %>%
-    mutate(X207_USAGE = normalize(X207_USAGE)) %>%
-    mutate(X208_USAGE = normalize(X208_USAGE)) %>%
-    mutate(X209_USAGE = normalize(X209_USAGE)) %>%
-    mutate(X210_USAGE = normalize(X210_USAGE)) %>%
-    mutate(X206_USAGE_DIFF = normalize(X206_USAGE_DIFF)) %>%
-    mutate(X207_USAGE_DIFF = normalize(X207_USAGE_DIFF)) %>%
-    mutate(X208_USAGE_DIFF = normalize(X208_USAGE_DIFF)) %>%
-    mutate(X209_USAGE_DIFF = normalize(X209_USAGE_DIFF)) %>%
-    mutate(X210_USAGE_DIFF = normalize(X210_USAGE_DIFF)) %>%
-    mutate(X206_SESS_DIFF = normalize(X206_SESS_DIFF)) %>%
-    mutate(X207_SESS_DIFF = normalize(X207_SESS_DIFF)) %>%
-    mutate(X208_SESS_DIFF = normalize(X208_SESS_DIFF)) %>%
-    mutate(X209_SESS_DIFF = normalize(X209_SESS_DIFF)) %>%
-    mutate(X210_SESS_DIFF = normalize(X210_SESS_DIFF)) %>%
-    mutate(X206_USAGE_SESS = normalize(X206_USAGE_SESS)) %>%
-    mutate(X207_USAGE_SESS = normalize(X207_USAGE_SESS)) %>%
-    mutate(X208_USAGE_SESS = normalize(X208_USAGE_SESS)) %>%
-    mutate(X209_USAGE_SESS = normalize(X209_USAGE_SESS)) %>%
-    mutate(X210_USAGE_SESS = normalize(X210_USAGE_SESS))}
-```
+# Feature Engineering
 
 ```{r}
 binaryIndicators <- function(dataset) {
@@ -421,33 +416,6 @@ binaryIndicators <- function(dataset) {
     select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN)) %>%
     cbind(binary_indicators)
 }
-```
-
-```{r}
-handsetTargetData <- train %>%
-  group_by(HANDSET_NAME) %>%
-  summarise(HANDSET_TARGET_RATIO = sum(TARGET)/length(CONTRACT_KEY))
-handsetTargetRatio <- function(dataset) {
-  merge(dataset, handsetTargetData, all.x = TRUE) %>%
-    select(-HANDSET_NAME)
-}
-```
-
-```{r}
-featureEngineer <- function(data) {
-  data <- averageUsage(data)
-  data <- averageSess(data)
-  data <- overUse(data)
-  data <- underUse(data)
-  data <- usagePerSession(data)
-  data <- normalizeVariables(data)
-  data <- binaryIndicators(data)
-  data <- handsetTargetRatio(data)
-  return(data)
-}
-
-train <- train %>% featureEngineer()
-test <- test %>% featureEngineer()
 ```
 
 # Feature Extraction
