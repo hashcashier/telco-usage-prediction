@@ -105,8 +105,8 @@ averageUsage <- function(dataset) {
     mutate(X209_USAGE_DIFF = (X209_USAGE - AVG_USAGE)) %>%
     mutate(X210_USAGE_DIFF = (X210_USAGE - AVG_USAGE))
 }
-train <- averageUsage(train)
-test <- averageUsage(test)
+monthly <- averageUsage(monthly)
+testing <- averageUsage(testing)
 ```
 
 ```{r}
@@ -119,8 +119,8 @@ averageSess <- function(dataset) {
     mutate(X209_SESS_DIFF = (X209_SESSION_COUNT - AVG_SESS)) %>%
     mutate(X210_SESS_DIFF = (X210_SESSION_COUNT - AVG_SESS))
 }
-train <- averageSess(train)
-test <- averageSess(test)
+monthly <- averageSess(monthly)
+testing <- averageSess(testing)
 ```
 
 ```{r}
@@ -132,8 +132,8 @@ overUse <- function(dataset) {
     mutate(X209_TARGET = X209_USAGE_DIFF > 500) %>%
     mutate(X210_TARGET = X210_USAGE_DIFF > 500)
 }
-train <- overUse(train)
-test <- overUse(test)
+monthly <- overUse(monthly)
+testing <- overUse(testing)
 ```
 
 ```{r}
@@ -145,8 +145,8 @@ underUse <- function(dataset) {
     mutate(X209_TARGET_INV = X209_USAGE_DIFF < -500) %>%
     mutate(X210_TARGET_INV = X210_USAGE_DIFF < -500)
 }
-train <- underUse(train)
-test <- underUse(test)
+monthly <- underUse(monthly)
+testing <- underUse(testing)
 ```
 
 ```{r}
@@ -159,8 +159,8 @@ usagePerSession <- function(dataset) {
     mutate(X209_USAGE_SESS = X209_USAGE/X209_SESSION_COUNT) %>%
     mutate(X210_USAGE_SESS = X210_USAGE/X210_SESSION_COUNT)
 }
-train <- usagePerSession(train)
-test <- usagePerSession(test)
+monthly <- usagePerSession(monthly)
+testing <- usagePerSession(testing)
 ```
 ## Transformation
 
