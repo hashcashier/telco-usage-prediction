@@ -13,6 +13,8 @@ library(RWeka)
 library(dplyr)
 library(knitr)
 library(reshape2)
+library(caret)
+library(FactoMineR)
 ```
 
 ```{r}
@@ -399,7 +401,7 @@ mean(train$TARGET)
 All zeros benchmark = 0.5
 Training data is skewed, while test data is symmetric.
 
-# Feature Engineering
+## Feature Engineering
 
 ```{r}
 binaryIndicators <- function(dataset) {
@@ -411,41 +413,36 @@ binaryIndicators <- function(dataset) {
     model.matrix(~ RATE_PLAN - 1, data = modelFrame) %>% data.frame()
     #model.matrix(~ HANDSET_NAME - 1, data = modelFrame) %>% data.frame()
   )
+  
+  binary_indicators[is.na(binary_indicators)] <- 0
 
   dataset <- dataset %>%
-    select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN)) %>%
+    select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN, HANDSET_NAME)) %>%
     cbind(binary_indicators)
 }
+# train <- binaryIndicators(train)
+# test <- binaryIndicators(test)
 ```
 
 # Feature Extraction
 
 ```{r}
-# AS <- make_Weka_filter("weka.filters.supervised.attribute.AttributeSelection")
-# CFS <- function(form, data) {
-#   return(AS(
-#     formula(form),
-#     data, control = Weka_control(
-#       E = "weka.attributeSelection.CfsSubsetEval",
-#       S = "weka.attributeSelection.GreedyStepwise")))
-# }
-```
+subs_train  <- train %>% select(GENDER, VALUE_SEGMENT)
+subs_test   <- test %>% select(GENDER, VALUE_SEGMENT)
+subs_data   <- rbind(subs_train, subs_test)
 
-```{r}
-# CFS(TARGET ~ ., train) %>% glimpse()
-```
+mca <- MCA(subs_data, graph = FALSE)
+mca_vars <- data.frame(mca$var$coord)
+mca_obs <- data.frame(mca$ind$coord)
 
-```{r}
-targetCor <- function(x) {
-  x %>% 
-    select(-c(CONTRACT_KEY)) %>% 
-    cor() %>% 
-    data.frame %>%
-    select(TARGET) %>%
-    arrange(desc(TARGET)) %>%
-    filter(!is.na(TARGET), TARGET > 0.1)
-}
-targetCor(train)
+ggplot(data = mca_obs, aes(x = Dim.1, y = Dim.2)) +
+  geom_hline(yintercept = 0, colour = "gray70") +
+  geom_vline(xintercept = 0, colour = "gray70") +
+  geom_point(colour = "gray50", alpha = 0.7) +
+  geom_density2d(colour = "gray80") +
+  geom_text(data = mca_vars, aes(x = Dim.1, y = Dim.2, label = rownames(mca_vars))) +
+  ggtitle("MCA plot of variables using R package FactoMineR") +
+  scale_colour_discrete(name = "Variable")
 ```
 
 # Output
