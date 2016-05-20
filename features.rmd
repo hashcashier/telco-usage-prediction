@@ -15,6 +15,7 @@ library(knitr)
 library(reshape2)
 library(caret)
 library(FactoMineR)
+library(corrplot)
 ```
 
 ```{r}
@@ -443,6 +444,13 @@ ggplot(data = mca_obs, aes(x = Dim.1, y = Dim.2)) +
   geom_text(data = mca_vars, aes(x = Dim.1, y = Dim.2, label = rownames(mca_vars))) +
   ggtitle("MCA plot of variables using R package FactoMineR") +
   scale_colour_discrete(name = "Variable")
+```
+
+```{r}
+correlations <- cor(train %>% select(-c(AGE, GENDER, RATE_PLAN, VALUE_SEGMENT, HANDSET_NAME, TARGET)))
+corrplot(correlations, order = "hclust")
+highCorr <- findCorrelation(correlations, cutoff = 0.75)
+filtered <- train[, -highCorr]
 ```
 
 # Output
