@@ -76,8 +76,8 @@ monthly %>% summary()
 ```
 
 ```{r}
-session_count_resolution = 100
-usage_resolution = 100
+session_count_resolution <- 100
+usage_resolution <- 100
 hist(monthly$X206_SESSION_COUNT, breaks = session_count_resolution)
 hist(monthly$X207_SESSION_COUNT, breaks = session_count_resolution)
 hist(monthly$X208_SESSION_COUNT, breaks = session_count_resolution)
