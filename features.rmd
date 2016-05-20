@@ -425,25 +425,26 @@ binaryIndicators <- function(dataset) {
 # test <- binaryIndicators(test)
 ```
 
-# Feature Extraction
+# Visualization
 
 ```{r}
-subs_train  <- train %>% select(GENDER, VALUE_SEGMENT)
-subs_test   <- test %>% select(GENDER, VALUE_SEGMENT)
+subs_train  <- train %>% select(GENDER, VALUE_SEGMENT, RATE_PLAN, HANDSET_NAME)
+subs_test   <- test %>% select(GENDER, VALUE_SEGMENT, RATE_PLAN, HANDSET_NAME)
 subs_data   <- rbind(subs_train, subs_test)
 
 mca <- MCA(subs_data, graph = FALSE)
 mca_vars <- data.frame(mca$var$coord)
-mca_obs <- data.frame(mca$ind$coord)
+mca_obs <- data.frame(mca$ind$coord, c(train$TARGET, rep(NA, nrow(test))))
+names(mca_obs) <- c("Dim.1", "Dim.2", "Dim.3", "Dim.4", "Dim.5", "TARGET")
+```
 
+```{r}
 ggplot(data = mca_obs, aes(x = Dim.1, y = Dim.2)) +
   geom_hline(yintercept = 0, colour = "gray70") +
   geom_vline(xintercept = 0, colour = "gray70") +
-  geom_point(colour = "gray50", alpha = 0.7) +
-  geom_density2d(colour = "gray80") +
-  geom_text(data = mca_vars, aes(x = Dim.1, y = Dim.2, label = rownames(mca_vars))) +
+  geom_point(aes(colour = as.logical(TARGET)), alpha = 0.25) +
   ggtitle("MCA plot of variables using R package FactoMineR") +
-  scale_colour_discrete(name = "Variable")
+  scale_colour_discrete(name = "Target")
 ```
 
 ```{r}
