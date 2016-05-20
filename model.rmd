@@ -1,0 +1,73 @@
+---
+title: "Telco Project"
+author: "Rami"
+date: "May 20, 2016"
+output: html_document
+---
+
+# Setup
+
+```{r}
+options( java.parameters = "-Xmx12g" )
+library(RWeka)
+library(dplyr)
+library(knitr)
+library(reshape2)
+library(caret)
+library(FactoMineR)
+library(corrplot)
+library(e1071)
+library(doMC)
+registerDoMC(cores = 3)
+library(randomForest)
+```
+
+```{r}
+train <- read.csv("engineered.train.csv")
+test <- read.csv("engineered.test.csv")
+```
+
+```{r}
+train$TARGET <- factor(train$TARGET)
+train_small <- train %>% select(-HANDSET_NAME)
+test_small <- test %>% select(-HANDSET_NAME)
+test_small$RATE_PLAN[test_small$RATE_PLAN == "Open 399"] <- NA
+test_small$RATE_PLAN[test_small$RATE_PLAN == "New Bouquet ESDB 25"] <- NA
+```
+
+```{r}
+set.seed(1337)
+rforestFit <- randomForest(TARGET ~ .,
+                           data = train_small,
+                           ntree = 2000)
+```
+
+```{r}
+predicted <- predict(rforestFit, test_small)
+```
+
+```{r}
+set.seed(1337)
+logisticFit <- train(TARGET ~ .,
+                     data = train_small,
+                     method = "glm",
+                     trControl = trainControl(method = "cv", number = 10))
+```
+
+```{r}
+predicted <- predict(logisticFit, test_small)
+```
+
+```{r}
+set.seed(1337)
+svmFit <- train(TARGET ~ .,
+                data = train_small,
+                method = "svmRadial",
+                tuneLength = 10,
+                trControl = trainControl(method = "cv", number = 20))
+```
+
+```{r}
+predicted <- predict(svmFit, test_small)
+```
+

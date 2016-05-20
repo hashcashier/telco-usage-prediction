@@ -451,8 +451,8 @@ ggplot(data = mca_obs, aes(x = Dim.1, y = Dim.2)) +
 ```{r}
 correlations <- cor(train %>% select(-c(AGE, GENDER, RATE_PLAN, VALUE_SEGMENT, HANDSET_NAME, TARGET)))
 corrplot(correlations, order = "hclust")
-highCorr <- findCorrelation(correlations, cutoff = 0.75)
-filtered <- train[, -highCorr]
+#highCorr <- findCorrelation(correlations, cutoff = 0.75)
+#filtered <- train[, -highCorr]
 ```
 
 # Output

@@ -12,6 +12,10 @@ options( java.parameters = "-Xmx12g" )
 library(RWeka)
 library(dplyr)
 library(knitr)
+library(reshape2)
+library(caret)
+library(FactoMineR)
+library(corrplot)
 ```
 
 ```{r}
