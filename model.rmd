@@ -24,11 +24,23 @@ library(randomForest)
 
 ```{r}
 train <- read.csv("engineered.train.csv")
+train$TARGET <- factor(train$TARGET)
 test <- read.csv("engineered.test.csv")
 ```
 
+# Partial Least Squares
+
+# Neural Network
+
+# Discriminant Analysis
+
+# Random Forest
+
+Do MCA..
+
+# Other..
+
 ```{r}
-train$TARGET <- factor(train$TARGET)
 train_small <- train %>% select(-HANDSET_NAME)
 test_small <- test %>% select(-HANDSET_NAME)
 test_small$RATE_PLAN[test_small$RATE_PLAN == "Open 399"] <- NA
