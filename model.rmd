@@ -47,14 +47,14 @@ set.seed(1337)
 model.pls <- train(TARGET ~ .,
                    train %>% select(-CONTRACT_KEY),
                    method = "pls",
-                   tuneGrid = expand.grid(.ncomp = 1:20),
+                   tuneGrid = expand.grid(.ncomp = 20:20),
                    #scale = TRUE,
                    probMehod = "softmax",
                    #ncomp = 5,
                    metric = "ROC",
                    na.action = na.pass,
                    trControl = trainControl(
-                     number = 15,
+                     number = 1,
                      classProbs = TRUE,
                      savePredictions = TRUE,
                      summaryFunction = twoClassSummary),
@@ -62,8 +62,8 @@ model.pls <- train(TARGET ~ .,
 ```
 
 ```{r}
-predict(model.pls,
-        newdata = select(test, -c(CONTRACT_KEY, HANDSET_NAME, RATE_PLAN, GENDER, VALUE_SEGMENT)),
+pred.pls <- predict(model.pls,
+        newdata = select(test, -CONTRACT_KEY),
         type = "prob",
         na.action = na.pass)
 ```

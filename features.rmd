@@ -356,8 +356,8 @@ rm(combine)
 ## Transformation
 
 ```{r}
-train$TARGET <- factor(train$TARGET)
-#levels(train) <- c("N", "P")
+train$TARGET <- as.logical(train$TARGET)
+# levels(train) <- c("N", "P")
 test$HANDSET_NAME[test$HANDSET_NAME %in% setdiff(levels(test$HANDSET_NAME), levels(train$HANDSET_NAME))] <- NA
 ```
 
@@ -447,33 +447,74 @@ binaryIndicators <- function(dataset) {
     select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN, HANDSET_NAME)) %>%
     cbind(binary_indicators)
 }
-train <- binaryIndicators(train)
-test <- binaryIndicators(test)
+#train <- binaryIndicators(train)
+#test <- binaryIndicators(test)
 ```
 
-# Imputation
+# Pre-processing
 
 ```{r}
-
+rm(daily, dates, monthly, roaming, testing, contracts)
 ```
 
-# Feature Reduction
+## Feature Reduction
 
 ```{r}
+# colSelect <- function (dataset) {
+#   select(dataset,
+#          RATE_PLAN,
+#          HANDSET_NAME,
+#          VALUE_SEGMENT,
+#          GENDER)
+# }
+# 
+# mca <- MCA(colSelect(train), graph = FALSE)
+# 
+# rm(colSelect)
+```
 
+```{r}
+colSelect <- function (dataset) {
+  binaryIndicators(dataset) %>%
+  select(starts_with("RATE_PLAN"),
+         starts_with("HANDSET_NAME"),
+         starts_with("VALUE_SEGMENT"),
+         starts_with("GENDER"))
+}
+
+pca <- prcomp(colSelect(train), center = FALSE, scale = FALSE, tol = 0.1)
+
+reduceDim <- function (dataset) {
+  res <- predict(pca, newdata = colSelect(dataset))[, 1:50]
+  dataset %>%
+    select(-starts_with("RATE_PLAN"),
+           -starts_with("HANDSET_NAME"),
+           -starts_with("VALUE_SEGMENT"),
+           -starts_with("GENDER")) %>%
+    cbind(res)
+}
+
+train <- reduceDim(train)
+test <- reduceDim(test)
+
+rm(colSelect, pca, reduceDim, binaryIndicators)
+```
+
+## BoxCox/Center/Scale
+
+```{r}
+preProc <- preProcess(select(train, -CONTRACT_KEY, -TARGET),
+                      method = c("BoxCox", "center", "scale", "medianImpute"),
+                      na.action = na.pass)
+train <- predict(preProc, train)
+test <- predict(preProc, test)
+rm(preProc)
 ```
 
 # Output
 
 ```{r}
-rm(daily, dates, monthly, roaming, testing)
-```
-
-```{r}
 write.csv(train, "engineered.train.csv", row.names = FALSE)
-```
-
-```{r}
 write.csv(test, "engineered.test.csv", row.names = FALSE)
 ```
 
