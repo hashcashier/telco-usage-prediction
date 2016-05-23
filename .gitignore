@@ -3,3 +3,6 @@
 *.csv
 *.Rhistory
 *.RData
+*.tar
+*.tar.gz
+*.tar.bz2
