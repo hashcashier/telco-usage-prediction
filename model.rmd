@@ -8,24 +8,90 @@ output: html_document
 # Setup
 
 ```{r}
-options( java.parameters = "-Xmx12g" )
-library(RWeka)
+# options( java.parameters = "-Xmx12g" )
+# library(MASS)
 library(dplyr)
 library(knitr)
-library(reshape2)
+# library(reshape2)
 library(caret)
-library(FactoMineR)
-library(corrplot)
-library(e1071)
-library(doMC)
-registerDoMC(cores = 3)
-library(randomForest)
+# library(FactoMineR)
+# library(corrplot)
+# library(e1071)
+# library(randomForest)
+# Let's not thrash my SSD to death for the sake of this project..
+# library(doMC)
+# registerDoMC(cores = 3)
 ```
 
 ```{r}
 train <- read.csv("engineered.train.csv")
-train$TARGET <- factor(train$TARGET)
 test <- read.csv("engineered.test.csv")
+train$TARGET <- factor(train$TARGET)
+levels(train$TARGET) <- c("Negative", "Positive")
+```
+
+# PLS
+
+```{r}
+set.seed(1337)
+#tmp <- select(train, -c(TARGET, CONTRACT_KEY, HANDSET_NAME, RATE_PLAN, GENDER, VALUE_SEGMENT)) %>% as.matrix
+model.pls <- plsda(TARGET ~ .,
+                   train,
+                   scale = TRUE,
+                   probMehod = "softmax",
+                   ncomp = 5)
+```
+
+```{r}
+set.seed(1337)
+model.pls <- train(TARGET ~ .,
+                   train %>% select(-CONTRACT_KEY),
+                   method = "pls",
+                   tuneGrid = expand.grid(.ncomp = 1:20),
+                   #scale = TRUE,
+                   probMehod = "softmax",
+                   #ncomp = 5,
+                   metric = "ROC",
+                   na.action = na.pass,
+                   trControl = trainControl(
+                     number = 15,
+                     classProbs = TRUE,
+                     savePredictions = TRUE,
+                     summaryFunction = twoClassSummary),
+                   verbose = TRUE)
+```
+
+```{r}
+predict(model.pls,
+        newdata = select(test, -c(CONTRACT_KEY, HANDSET_NAME, RATE_PLAN, GENDER, VALUE_SEGMENT)),
+        type = "prob",
+        na.action = na.pass)
+```
+
+```{r}
+pred.pls <- predict(model.rpart, newdata = test)
+```
+
+
+# RPART
+
+```{r}
+model.rpart <- train(x = select(train, -c(TARGET, CONTRACT_KEY)),
+                     y = select(train, TARGET),
+                     method = "rpart",
+                     tuneLength = 10,
+                     preProcess = c("knnImpute"),
+                     trControl = trainControl(
+                       method = "cv",
+                       number = 15,
+                       classProbs = TRUE,
+                       savePredictions = TRUE,
+                       summaryFunction = twoClassSummary),
+                     metric = "ROC")
+```
+
+```{r}
+pred.rpart <- predict(model.rpart, newdata = test)
 ```
 
 # Partial Least Squares
@@ -34,52 +100,10 @@ test <- read.csv("engineered.test.csv")
 
 # Discriminant Analysis
 
+```{r}
+model.qda <- qda(TARGET ~ ., data = train)
+```
+
 # Random Forest
 
 Do MCA..
-
-# Other..
-
-```{r}
-train_small <- train %>% select(-HANDSET_NAME)
-test_small <- test %>% select(-HANDSET_NAME)
-test_small$RATE_PLAN[test_small$RATE_PLAN == "Open 399"] <- NA
-test_small$RATE_PLAN[test_small$RATE_PLAN == "New Bouquet ESDB 25"] <- NA
-```
-
-```{r}
-set.seed(1337)
-rforestFit <- randomForest(TARGET ~ .,
-                           data = train_small,
-                           ntree = 2000)
-```
-
-```{r}
-predicted <- predict(rforestFit, test_small)
-```
-
-```{r}
-set.seed(1337)
-logisticFit <- train(TARGET ~ .,
-                     data = train_small,
-                     method = "glm",
-                     trControl = trainControl(method = "cv", number = 10))
-```
-
-```{r}
-predicted <- predict(logisticFit, test_small)
-```
-
-```{r}
-set.seed(1337)
-svmFit <- train(TARGET ~ .,
-                data = train_small,
-                method = "svmRadial",
-                tuneLength = 10,
-                trControl = trainControl(method = "cv", number = 20))
-```
-
-```{r}
-predicted <- predict(svmFit, test_small)
-```
-

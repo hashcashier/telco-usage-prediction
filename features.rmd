@@ -75,6 +75,12 @@ contracts$AGE[contracts$AGE <= 0] <- NA
 levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
 levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
 contracts$AGE <- powerCenterScale(contracts$AGE)
+contracts$HANDSET_NAME[contracts$HANDSET_NAME == ""] <- NA
+
+contracts$RATE_PLAN[contracts$RATE_PLAN == "Open 399"] <- "RED Him"
+contracts$RATE_PLAN[contracts$RATE_PLAN == "2012 Bouquet 35 Ctrl Flat"] <- "2012 Bouquet Ctrl 25"
+contracts$RATE_PLAN[contracts$RATE_PLAN == "New Bouquet ESDB 25"] <- "Enterprise Shared Data Bundle"
+contracts$RATE_PLAN[contracts$RATE_PLAN == "New Vodafone Business"] <- "Vodafone Business"
 ```
 
 # Monthly Aggregates: train/test
@@ -338,6 +344,14 @@ train <- combine(monthly)
 test <- combine(testing)
 ```
 
+## Transformation
+
+```{r}
+train$TARGET <- factor(train$TARGET)
+#levels(train) <- c("N", "P")
+test$HANDSET_NAME[test$HANDSET_NAME %in% setdiff(levels(test$HANDSET_NAME), levels(train$HANDSET_NAME))] <- NA
+```
+
 ## Exploration
 
 ```{r}
@@ -425,6 +439,16 @@ binaryIndicators <- function(dataset) {
 # test <- binaryIndicators(test)
 ```
 
+# Output
+
+```{r}
+write.csv(train, "engineered.train.csv", row.names = FALSE)
+```
+
+```{r}
+write.csv(test, "engineered.test.csv", row.names = FALSE)
+```
+
 # Visualization
 
 ```{r}
@@ -453,14 +477,4 @@ correlations <- cor(train %>% select(-c(AGE, GENDER, RATE_PLAN, VALUE_SEGMENT, H
 corrplot(correlations, order = "hclust")
 #highCorr <- findCorrelation(correlations, cutoff = 0.75)
 #filtered <- train[, -highCorr]
-```
-
-# Output
-
-```{r}
-write.csv(train, "engineered.train.csv", row.names = FALSE)
-```
-
-```{r}
-write.csv(test, "engineered.test.csv", row.names = FALSE)
 ```
