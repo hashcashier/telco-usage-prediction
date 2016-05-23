@@ -18,9 +18,9 @@ library(caret)
 # library(corrplot)
 # library(e1071)
 # library(randomForest)
-# Let's not thrash my SSD to death for the sake of this project..
-# library(doMC)
-# registerDoMC(cores = 3)
+# Let's not thrash an SSD to death for the sake of this project..
+library(doMC)
+registerDoMC(cores = 10)
 ```
 
 ```{r}
