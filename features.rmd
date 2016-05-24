@@ -14,23 +14,22 @@ library(reshape2)
 library(caret)
 library(FactoMineR)
 library(corrplot)
+library(impute)
 ```
 
 ```{r}
-normalize <- function(x) {
-  lower = min(x, na.rm = TRUE)
-  upper = max(x, na.rm = TRUE)
-  return((x - lower)/(upper - lower))
-}
-centerScale <- function(x) {
-  return((x - mean(x, na.rm = TRUE))/sd(x, na.rm = TRUE))
-}
-powerCenterScale <- function(x) {
-  return(centerScale(sqrt(x)))
-}
-logCenterScale <- function(x) {
-  return(centerScale(log(x)))
-}
+# normalize <- function(x, lower = min(x, na.rm = TRUE), upper = max(x, na.rm = TRUE)) {
+#   return((x - lower)/(upper - lower))
+# }
+# centerScale <- function(x, mu = mean(x, na.rm = TRUE), sg = sd(x, na.rm = TRUE)) {
+#   return((x - mu)/sg)
+# }
+# powerCenterScale <- function(x, mu = mean(sqrt(x), na.rm = TRUE), sg = sd(sqrt(x), na.rm = TRUE)) {
+#   return(centerScale(sqrt(x), mu, sg))
+# }
+# logCenterScale <- function(x, mu = mean(log(x), na.rm = TRUE), sg = sd(log(x), na.rm = TRUE)) {
+#   return(centerScale(log(x), mu, sg))
+# }
 ```
 
 # Contract References
@@ -41,25 +40,25 @@ contracts <- read.csv("contract_ref.csv")
 ## Exploration
 
 ```{r}
-glimpse(contracts)
-contracts %>% summary()
+# glimpse(contracts)
+# contracts %>% summary()
 ```
 
 ```{r}
-hist(contracts$AGE)
-hist(as.integer(contracts$GENDER))
-hist(as.integer(contracts$RATE_PLAN))
-hist(as.integer(contracts$VALUE_SEGMENT))
-handset_count <- length(levels(contracts$HANDSET_NAME))
-hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
+# hist(contracts$AGE)
+# hist(as.integer(contracts$GENDER))
+# hist(as.integer(contracts$RATE_PLAN))
+# hist(as.integer(contracts$VALUE_SEGMENT))
+# handset_count <- length(levels(contracts$HANDSET_NAME))
+# hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
 ```
 
 ## Outliers
 
 ```{r}
-contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
-contracts %>% filter(AGE == 99) %>% nrow
-contracts %>% filter(AGE < 0) %>% nrow
+# contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
+# contracts %>% filter(AGE == 99) %>% nrow
+# contracts %>% filter(AGE < 0) %>% nrow
 ```
 
 ```{r}
@@ -72,7 +71,7 @@ contracts$AGE[contracts$AGE <= 0] <- NA
 ```{r}
 levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
 levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
-contracts$AGE <- powerCenterScale(contracts$AGE)
+# contracts$AGE <- powerCenterScale(contracts$AGE)
 contracts$HANDSET_NAME[contracts$HANDSET_NAME == ""] <- NA
 
 contracts$RATE_PLAN[contracts$RATE_PLAN == "Open 399"] <- "RED Him"
@@ -91,13 +90,13 @@ testing <- read.csv("test.csv")
 ## Exploration
 
 ```{r}
-glimpse(monthly)
-monthly %>% summary()
+# glimpse(monthly)
+# monthly %>% summary()
 ```
 
 ```{r}
-hist(monthly$X206_SESSION_COUNT, breaks = 100)
-hist(monthly$X206_USAGE, breaks = 100)
+# hist(monthly$X206_SESSION_COUNT, breaks = 100)
+# hist(monthly$X206_USAGE, breaks = 100)
 ```
 
 ## Feature Engineering
@@ -114,6 +113,7 @@ averageUsage <- function(dataset) {
 }
 monthly <- averageUsage(monthly)
 testing <- averageUsage(testing)
+rm(averageUsage)
 ```
 
 ```{r}
@@ -128,6 +128,7 @@ averageSess <- function(dataset) {
 }
 monthly <- averageSess(monthly)
 testing <- averageSess(testing)
+rm(averageSess)
 ```
 
 ```{r}
@@ -141,6 +142,7 @@ overUse <- function(dataset) {
 }
 monthly <- overUse(monthly)
 testing <- overUse(testing)
+rm(overUse)
 ```
 
 ```{r}
@@ -154,6 +156,7 @@ underUse <- function(dataset) {
 }
 monthly <- underUse(monthly)
 testing <- underUse(testing)
+rm(underUse)
 ```
 
 ```{r}
@@ -168,6 +171,7 @@ usagePerSession <- function(dataset) {
 }
 monthly <- usagePerSession(monthly)
 testing <- usagePerSession(testing)
+rm(usagePerSession)
 ```
 ## Transformation
 
@@ -203,14 +207,16 @@ powerCenterScaleLogAggr <- function(dataset) {
   dataset$X210_USAGE_SESS <-    powerCenterScale(dataset$X210_USAGE_SESS)
   return(dataset)
 }
-monthly <- powerCenterScaleLogAggr(monthly)
-testing <- powerCenterScaleLogAggr(testing)
+# Automated in caret
+# monthly <- powerCenterScaleLogAggr(monthly)
+# testing <- powerCenterScaleLogAggr(testing)
+rm(powerCenterScaleLogAggr)
 ```
 
 ## Outliers
 
 ```{r}
-summary(monthly)
+# summary(monthly)
 ```
 
 ### Session Count
@@ -226,10 +232,10 @@ roaming <- read.csv("roaming_monthly.csv")
 ## Exploration
 
 ```{r}
-glimpse(roaming)
-summary(roaming)
-hist(roaming$USAGE, breaks = 100)
-hist(roaming$SESSION_COUNT, breaks = 100)
+# glimpse(roaming)
+# summary(roaming)
+# hist(roaming$USAGE, breaks = 100)
+# hist(roaming$SESSION_COUNT, breaks = 100)
 ```
 
 ## Transformation
@@ -266,15 +272,17 @@ powerCenterScaleRoam <- function(dataset) {
 ```
 
 ```{r}
-roaming <- powerCenterScaleRoam(roaming)
+# Caret
+# roaming <- powerCenterScaleRoam(roaming)
+rm(powerCenterScaleRoam)
 ```
 
 ## Outliers
 
 ```{r}
-hist(roaming$CALL_MONTH_KEY)
-hist(roaming$USAGE)
-hist(roaming$SESSION_COUNT)
+# hist(roaming$CALL_MONTH_KEY)
+# hist(roaming$USAGE)
+# hist(roaming$SESSION_COUNT)
 ```
 
 # Daily Aggregate
@@ -291,8 +299,8 @@ daily <- daily %>%
 ## Exploration
 
 ```{r}
-glimpse(daily)
-daily %>% summary()
+# glimpse(daily)
+# daily %>% summary()
 ```
 
 ## Transformation
@@ -320,10 +328,10 @@ rm(daily_sum, daily_usage, daily_sessions)
 ## Outliers
 
 ```{r}
-hist(daily$TOTAL_CONSUMPTION, breaks = 100)
-hist(daily$NO_OF_SESSIONS, breaks = 100)
-hist(as.integer(daily$FULL_DATE))
-hist(as.integer(daily$ROAMING_FLAG))
+# hist(daily$TOTAL_CONSUMPTION, breaks = 100)
+# hist(daily$NO_OF_SESSIONS, breaks = 100)
+# hist(as.integer(daily$FULL_DATE))
+# hist(as.integer(daily$ROAMING_FLAG))
 ```
 
 # Combined: Monthly * Contracts * Roaming * Daily
@@ -340,26 +348,27 @@ combine <- function(dataset) {
 ```{r}
 train <- combine(monthly)
 test <- combine(testing)
+rm(combine)
 ```
 
 ## Transformation
 
 ```{r}
-train$TARGET <- factor(train$TARGET)
-#levels(train) <- c("N", "P")
+train$TARGET <- as.logical(train$TARGET)
+# levels(train) <- c("N", "P")
 test$HANDSET_NAME[test$HANDSET_NAME %in% setdiff(levels(test$HANDSET_NAME), levels(train$HANDSET_NAME))] <- NA
 ```
 
 ## Exploration
 
 ```{r}
-glimpse(train)
-summary(train)
+# glimpse(train)
+# summary(train)
 ```
 
 ```{r}
-glimpse(test)
-summary(test)
+# glimpse(test)
+# summary(test)
 ```
 
 ```{r}
@@ -375,6 +384,7 @@ handsetOverview <- function(x) {
     head(n = 20)
 }
 cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
+rm(handsetOverview)
 ```
 
 ```{r}
@@ -390,6 +400,7 @@ rateplanOverview <- function(x) {
     head(n = 20)
 }
 cbind(rateplanOverview(train), rateplanOverview(test)) %>% kable(row.names = FALSE)
+rm(rateplanOverview)
 ```
 
 ```{r}
@@ -405,10 +416,11 @@ valuesegmentOverview <- function(x) {
     head(n = 20)
 }
 cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.names = FALSE)
+rm(valuesegmentOverview)
 ```
 
 ```{r}
-mean(train$TARGET)
+# mean(train$TARGET)
 ```
 
 All zeros benchmark = 0.5
@@ -423,8 +435,8 @@ binaryIndicators <- function(dataset) {
   binary_indicators <- cbind(
     model.matrix(~ VALUE_SEGMENT - 1, data = modelFrame) %>% data.frame(),
     model.matrix(~ GENDER - 1, data = modelFrame) %>% data.frame(),
-    model.matrix(~ RATE_PLAN - 1, data = modelFrame) %>% data.frame()
-    #model.matrix(~ HANDSET_NAME - 1, data = modelFrame) %>% data.frame()
+    model.matrix(~ RATE_PLAN - 1, data = modelFrame) %>% data.frame(),
+    model.matrix(~ HANDSET_NAME - 1, data = modelFrame) %>% data.frame()
   )
   
   binary_indicators[is.na(binary_indicators)] <- 0
@@ -433,17 +445,77 @@ binaryIndicators <- function(dataset) {
     select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN, HANDSET_NAME)) %>%
     cbind(binary_indicators)
 }
-# train <- binaryIndicators(train)
-# test <- binaryIndicators(test)
+#train <- binaryIndicators(train)
+#test <- binaryIndicators(test)
+```
+
+# Pre-processing
+
+```{r}
+rm(daily, dates, monthly, roaming, testing, contracts)
+```
+
+## Feature Reduction
+
+```{r}
+# colSelect <- function (dataset) {
+#   select(dataset,
+#          RATE_PLAN,
+#          HANDSET_NAME,
+#          VALUE_SEGMENT,
+#          GENDER)
+# }
+# 
+# mca <- MCA(colSelect(train), graph = FALSE)
+# 
+# rm(colSelect)
+```
+
+```{r}
+colSelect <- function (dataset) {
+  binaryIndicators(dataset) %>%
+  select(starts_with("RATE_PLAN"),
+         starts_with("HANDSET_NAME"),
+         starts_with("VALUE_SEGMENT"),
+         starts_with("GENDER"))
+}
+
+pca <- prcomp(colSelect(train), center = FALSE, scale = FALSE, tol = 0.1)
+
+reduceDim <- function (dataset) {
+  res <- predict(pca, newdata = colSelect(dataset))[, 1:50]
+  dataset %>%
+    select(-starts_with("RATE_PLAN"),
+           -starts_with("HANDSET_NAME"),
+           -starts_with("VALUE_SEGMENT"),
+           -starts_with("GENDER")) %>%
+    cbind(res)
+}
+
+train <- reduceDim(train)
+test <- reduceDim(test)
+
+rm(colSelect,
+   pca,
+   reduceDim,
+   binaryIndicators)
+```
+
+## BoxCox/Center/Scale
+
+```{r}
+preProc <- preProcess(select(train, -CONTRACT_KEY, -TARGET),
+                      method = c("BoxCox", "center", "scale", "bagImpute"),
+                      na.action = na.pass)
+train <- predict(preProc, train)
+test <- predict(preProc, test)
+rm(preProc)
 ```
 
 # Output
 
 ```{r}
 write.csv(train, "engineered.train.csv", row.names = FALSE)
-```
-
-```{r}
 write.csv(test, "engineered.test.csv", row.names = FALSE)
 ```
 
