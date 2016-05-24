@@ -34,7 +34,9 @@ levels(train$TARGET) <- c("Negative", "Positive")
 export_res <- function (res, fname) {
   dframe <- cbind(as.integer(test$CONTRACT_KEY), as.integer(res) - 1) %>% data.frame
   names(dframe) <- c("CONTRACT_KEY", "PREDICTED_TARGET")
-  write.csv(dframe, fname, row.names = FALSE)
+  dframe$CONTRACT_KEY <- as.integer(dframe$CONTRACT_KEY)
+  dframe$PREDICTED_TARGET <- as.integer(dframe$PREDICTED_TARGET)
+  write.csv(dframe, fname, row.names = FALSE, quote = FALSE)
 }
 ```
 
