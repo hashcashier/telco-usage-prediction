@@ -30,71 +30,95 @@ train$TARGET <- factor(train$TARGET)
 levels(train$TARGET) <- c("Negative", "Positive")
 ```
 
-# PLS
+```{r}
+export_res <- function (res, fname) {
+  dframe <- cbind(as.integer(test$CONTRACT_KEY), as.integer(res) - 1) %>% data.frame
+  names(dframe) <- c("CONTRACT_KEY", "PREDICTED_TARGET")
+  write.csv(dframe, fname, row.names = FALSE)
+}
+```
+
+
+# Partial Least Squares
 
 ```{r}
 set.seed(1337)
-#tmp <- select(train, -c(TARGET, CONTRACT_KEY, HANDSET_NAME, RATE_PLAN, GENDER, VALUE_SEGMENT)) %>% as.matrix
-model.pls <- plsda(TARGET ~ .,
-                   train,
-                   scale = TRUE,
-                   probMehod = "softmax",
-                   ncomp = 5)
+model.pls2 <- plsda(select(train, -CONTRACT_KEY, -TARGET),
+                    train$TARGET,
+                    probMehod = "Bayes",
+                    na.action = na.pass,
+                    ncomp = 13)
 ```
 
 ```{r}
 set.seed(1337)
+alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
 model.pls <- train(TARGET ~ .,
-                   train %>% select(-CONTRACT_KEY),
+                   alternate_train,
                    method = "pls",
-                   tuneGrid = expand.grid(.ncomp = 20:20),
-                   #scale = TRUE,
-                   probMehod = "softmax",
-                   #ncomp = 5,
+                   tuneGrid = expand.grid(.ncomp = 10:20),
+                   probMehod = "Bayes",
                    metric = "ROC",
                    na.action = na.pass,
                    trControl = trainControl(
-                     number = 1,
+                     #method = "cv",
+                     number = 2,
                      classProbs = TRUE,
                      savePredictions = TRUE,
                      summaryFunction = twoClassSummary),
                    verbose = TRUE)
+model.pls
+confusionMatrix(model.pls)
 ```
 
 ```{r}
-pred.pls <- predict(model.pls,
-        newdata = select(test, -CONTRACT_KEY),
-        type = "prob",
-        na.action = na.pass)
+set.seed(1337)
+alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+model.pls <- train(TARGET ~ .,
+                   alternate_train,
+                   method = "pls",
+                   tuneGrid = expand.grid(.ncomp = 10:20),
+                   probMehod = "Bayes",
+                   metric = "ROC",
+                   na.action = na.pass,
+                   trControl = trainControl(
+                     #method = "cv",
+                     number = 2,
+                     classProbs = TRUE,
+                     savePredictions = TRUE,
+                     summaryFunction = twoClassSummary),
+                   verbose = TRUE)
+model.pls
+confusionMatrix(model.pls)
 ```
 
 ```{r}
-pred.pls <- predict(model.rpart, newdata = test)
+pred.pls <- predict(model.pls, newdata = test)
+summary(pred.pls)
 ```
-
 
 # RPART
 
 ```{r}
+set.seed(1337)
 model.rpart <- train(x = select(train, -c(TARGET, CONTRACT_KEY)),
-                     y = select(train, TARGET),
+                     y = train$TARGET,
                      method = "rpart",
-                     tuneLength = 10,
-                     preProcess = c("knnImpute"),
+                     tuneLength = 30,
                      trControl = trainControl(
                        method = "cv",
-                       number = 15,
+                       number = 10,
                        classProbs = TRUE,
                        savePredictions = TRUE,
                        summaryFunction = twoClassSummary),
-                     metric = "ROC")
+                     metric = "Spec")
+model.rpart
 ```
 
 ```{r}
 pred.rpart <- predict(model.rpart, newdata = test)
+summary(pred.rpart)
 ```
-
-# Partial Least Squares
 
 # Neural Network
 

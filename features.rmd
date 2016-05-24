@@ -497,14 +497,17 @@ reduceDim <- function (dataset) {
 train <- reduceDim(train)
 test <- reduceDim(test)
 
-rm(colSelect, pca, reduceDim, binaryIndicators)
+rm(colSelect,
+   pca,
+   reduceDim,
+   binaryIndicators)
 ```
 
 ## BoxCox/Center/Scale
 
 ```{r}
 preProc <- preProcess(select(train, -CONTRACT_KEY, -TARGET),
-                      method = c("BoxCox", "center", "scale", "medianImpute"),
+                      method = c("BoxCox", "center", "scale", "bagImpute"),
                       na.action = na.pass)
 train <- predict(preProc, train)
 test <- predict(preProc, test)
