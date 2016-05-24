@@ -20,7 +20,7 @@ library(caret)
 # library(randomForest)
 # Let's not thrash an SSD to death for the sake of this project..
 library(doMC)
-registerDoMC(cores = 10)
+registerDoMC(cores = 14)
 ```
 
 ```{r}
@@ -50,7 +50,6 @@ model.pls <- train(TARGET ~ .,
                    tuneGrid = expand.grid(.ncomp = 1:20),
                    #scale = TRUE,
                    probMehod = "softmax",
-                   #ncomp = 5,
                    metric = "ROC",
                    na.action = na.pass,
                    trControl = trainControl(
