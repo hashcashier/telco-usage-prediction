@@ -103,18 +103,20 @@ summary(pred.pls)
 
 ```{r}
 set.seed(1337)
-model.rpart <- train(x = select(train, -c(TARGET, CONTRACT_KEY)),
-                     y = train$TARGET,
+alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+model.rpart <- train(x = select(alternate_train, -TARGET),
+                     y = alternate_train$TARGET,
                      method = "rpart",
-                     tuneLength = 30,
+                     tuneLength = 10,
                      trControl = trainControl(
                        method = "cv",
                        number = 10,
                        classProbs = TRUE,
                        savePredictions = TRUE,
                        summaryFunction = twoClassSummary),
-                     metric = "Spec")
+                     metric = "ROC")
 model.rpart
+confusionMatrix(model.rpart)
 ```
 
 ```{r}
@@ -124,6 +126,34 @@ summary(pred.rpart)
 
 # Neural Network
 
+```{r}
+set.seed(1337)
+alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+maxSize <- 2
+numWts <- maxSize * ncol(alternate_train) + maxSize + 1
+model.nnet <- train(x = select(alternate_train, -TARGET),
+                    y = alternate_train$TARGET,
+                    method = "nnet",
+                    metric = "ROC",
+                    tuneGrid = expand.grid(.size = 1:maxSize,
+                                           .decay = c(0, 0.1, 1, 2)),
+                    trace = FALSE,
+                    maxit = 500,
+                    MaxNWts = numWts,
+                    trControl = trainControl(
+                       #method = "cv",
+                       number = 2,
+                       classProbs = TRUE,
+                       savePredictions = TRUE,
+                       summaryFunction = twoClassSummary))
+model.nnet
+confusionMatrix(model.nnet)
+```
+
+```{r}
+pred.nnet <- predict(model.nnet, newdata = test)
+summary(pred.nnet)
+```
 # Discriminant Analysis
 
 ```{r}
