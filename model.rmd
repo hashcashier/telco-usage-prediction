@@ -58,7 +58,7 @@ alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGE
 model.pls <- train(TARGET ~ .,
                    alternate_train,
                    method = "pls",
-                   tuneGrid = expand.grid(.ncomp = 10:20),
+                   tuneGrid = expand.grid(.ncomp = 1:20),
                    probMehod = "Bayes",
                    metric = "ROC",
                    na.action = na.pass,
@@ -79,7 +79,7 @@ alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET,
 model.pls <- train(TARGET ~ .,
                    alternate_train,
                    method = "pls",
-                   tuneGrid = expand.grid(.ncomp = 10:20),
+                   tuneGrid = expand.grid(.ncomp = 1:20),
                    probMehod = "Bayes",
                    metric = "ROC",
                    na.action = na.pass,
@@ -130,15 +130,15 @@ summary(pred.rpart)
 set.seed(1337)
 alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
 maxSize <- 2
-numWts <- maxSize * ncol(alternate_train) + maxSize + 1
+numWts <- 2#maxSize * ncol(alternate_train) + maxSize + 1
 model.nnet <- train(x = select(alternate_train, -TARGET),
                     y = alternate_train$TARGET,
                     method = "nnet",
                     metric = "ROC",
                     tuneGrid = expand.grid(.size = 1:maxSize,
                                            .decay = c(0, 0.1, 1, 2)),
-                    trace = FALSE,
-                    maxit = 500,
+                    #trace = FALSE,
+                    maxit = 10,
                     MaxNWts = numWts,
                     trControl = trainControl(
                        #method = "cv",

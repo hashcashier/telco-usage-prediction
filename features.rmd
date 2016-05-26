@@ -341,8 +341,8 @@ rm(daily_sum, daily_usage, daily_sessions)
 ```{r}
 combine <- function(dataset) {
   dataset %>%
-    merge(contracts, all.x = TRUE) #%>%
-    #merge(roaming, all.x = TRUE) #%>%
+    merge(contracts, all.x = TRUE) %>%
+    merge(roaming, all.x = TRUE) #%>%
     #%>% merge(daily, all.x = TRUE)
 }
 ```
