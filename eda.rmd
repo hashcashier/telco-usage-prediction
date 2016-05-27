@@ -22,24 +22,24 @@ library(impute)
 ## Exploration
 
 ```{r}
-# glimpse(contracts)
-# contracts %>% summary()
+glimpse(contracts)
+contracts %>% summary()
 ```
 
 ```{r}
-# hist(contracts$AGE)
-# hist(as.integer(contracts$GENDER))
-# hist(as.integer(contracts$VALUE_SEGMENT))
-# handset_count <- length(levels(contracts$HANDSET_NAME))
-# hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
+hist(contracts$AGE)
+hist(as.integer(contracts$GENDER))
+hist(as.integer(contracts$VALUE_SEGMENT))
+handset_count <- length(levels(contracts$HANDSET_NAME))
+hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
 ```
 
 ## Outliers
 
 ```{r}
-# contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
-# contracts %>% filter(AGE == 99) %>% nrow
-# contracts %>% filter(AGE < 0) %>% nrow
+contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
+contracts %>% filter(AGE == 99) %>% nrow
+contracts %>% filter(AGE < 0) %>% nrow
 ```
 
 # Monthly Aggregates: train/test
@@ -47,19 +47,19 @@ library(impute)
 ## Exploration
 
 ```{r}
-# glimpse(monthly)
-# monthly %>% summary()
+glimpse(monthly)
+monthly %>% summary()
 ```
 
 ```{r}
-# hist(monthly$X206_SESSION_COUNT, breaks = 100)
-# hist(monthly$X206_USAGE, breaks = 100)
+hist(monthly$X206_SESSION_COUNT, breaks = 100)
+hist(monthly$X206_USAGE, breaks = 100)
 ```
 
 ## Outliers
 
 ```{r}
-# summary(monthly)
+summary(monthly)
 ```
 
 # Roaming
@@ -67,18 +67,18 @@ library(impute)
 ## Exploration
 
 ```{r}
-# glimpse(roaming)
-# summary(roaming)
-# hist(roaming$USAGE, breaks = 100)
-# hist(roaming$SESSION_COUNT, breaks = 100)
+glimpse(roaming)
+summary(roaming)
+hist(roaming$USAGE, breaks = 100)
+hist(roaming$SESSION_COUNT, breaks = 100)
 ```
 
 ## Outliers
 
 ```{r}
-# hist(roaming$CALL_MONTH_KEY)
-# hist(roaming$USAGE)
-# hist(roaming$SESSION_COUNT)
+hist(roaming$CALL_MONTH_KEY)
+hist(roaming$USAGE)
+hist(roaming$SESSION_COUNT)
 ```
 
 # Daily Aggregate
@@ -86,17 +86,17 @@ library(impute)
 ## Exploration
 
 ```{r}
-# glimpse(daily)
-# daily %>% summary()
+glimpse(daily)
+daily %>% summary()
 ```
 
 ## Outliers
 
 ```{r}
-# hist(daily$TOTAL_CONSUMPTION, breaks = 100)
-# hist(daily$NO_OF_SESSIONS, breaks = 100)
-# hist(as.integer(daily$FULL_DATE))
-# hist(as.integer(daily$ROAMING_FLAG))
+hist(daily$TOTAL_CONSUMPTION, breaks = 100)
+hist(daily$NO_OF_SESSIONS, breaks = 100)
+hist(as.integer(daily$FULL_DATE))
+hist(as.integer(daily$ROAMING_FLAG))
 ```
 
 # Combined: Monthly * Contracts * Roaming * Daily
@@ -104,49 +104,49 @@ library(impute)
 ## Exploration
 
 ```{r}
-# glimpse(train)
-# summary(train)
+glimpse(train)
+summary(train)
 ```
 
 ```{r}
-# glimpse(test)
-# summary(test)
+glimpse(test)
+summary(test)
 ```
 
 ```{r}
-# handsetOverview <- function(x) {
-#   x %>%
-#     group_by(HANDSET_NAME) %>% 
-#     summarise(
-#       MU_USAGE_MU = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-#       USERS = length(unique(CONTRACT_KEY)),
-#       TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
-#       PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
-#     arrange(desc(USERS)) %>%
-#     head(n = 20)
-# }
-# cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
-# rm(handsetOverview)
+handsetOverview <- function(x) {
+  x %>%
+    group_by(HANDSET_NAME) %>%
+    summarise(
+      MU_USAGE_MU = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+      USERS = length(unique(CONTRACT_KEY)),
+      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
+      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>%
+    arrange(desc(USERS)) %>%
+    head(n = 20)
+}
+cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
+rm(handsetOverview)
 ```
 
 ```{r}
-# valuesegmentOverview <- function(x) {
-#   x %>%
-#     group_by(VALUE_SEGMENT) %>% 
-#     summarise(
-#       MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-#       USERS = length(unique(CONTRACT_KEY)), 
-#       TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
-#       PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
-#     arrange(desc(USERS)) %>%
-#     head(n = 20)
-# }
-# cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.names = FALSE)
-# rm(valuesegmentOverview)
+valuesegmentOverview <- function(x) {
+  x %>%
+    group_by(VALUE_SEGMENT) %>%
+    summarise(
+      MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+      USERS = length(unique(CONTRACT_KEY)),
+      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
+      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>%
+    arrange(desc(USERS)) %>%
+    head(n = 20)
+}
+cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.names = FALSE)
+rm(valuesegmentOverview)
 ```
 
 ```{r}
-# mean(train$TARGET)
+mean(train$TARGET)
 ```
 
 All zeros benchmark = 0.5
