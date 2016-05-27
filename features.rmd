@@ -36,7 +36,9 @@ library(impute)
 
 # Contract References
 ```{r}
-contracts <- read.csv("contract_ref.csv")
+contracts <- read.csv("contract_ref.csv") %>%
+  merge(read.csv("rate.plans.csv"), all.x = TRUE) %>%
+  select(-RATE_PLAN)
 ```
 
 ## Exploration
@@ -49,7 +51,6 @@ contracts <- read.csv("contract_ref.csv")
 ```{r}
 # hist(contracts$AGE)
 # hist(as.integer(contracts$GENDER))
-# hist(as.integer(contracts$RATE_PLAN))
 # hist(as.integer(contracts$VALUE_SEGMENT))
 # handset_count <- length(levels(contracts$HANDSET_NAME))
 # hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
@@ -75,11 +76,6 @@ levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
 levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
 # contracts$AGE <- powerCenterScale(contracts$AGE)
 contracts$HANDSET_NAME[contracts$HANDSET_NAME == ""] <- NA
-
-contracts$RATE_PLAN[contracts$RATE_PLAN == "Open 399"] <- "RED Him"
-contracts$RATE_PLAN[contracts$RATE_PLAN == "2012 Bouquet 35 Ctrl Flat"] <- "2012 Bouquet Ctrl 25"
-contracts$RATE_PLAN[contracts$RATE_PLAN == "New Bouquet ESDB 25"] <- "Enterprise Shared Data Bundle"
-contracts$RATE_PLAN[contracts$RATE_PLAN == "New Vodafone Business"] <- "Vodafone Business"
 ```
 
 # Monthly Aggregates: train/test
@@ -344,6 +340,17 @@ combine <- function(dataset) {
     merge(contracts, all.x = TRUE) %>%
     merge(roaming, all.x = TRUE) #%>%
     #%>% merge(daily, all.x = TRUE)
+  
+  dataset$ROAMING_USAGE_206[is.na(dataset$ROAMING_USAGE_206)] <- 0
+  dataset$ROAMING_USAGE_207[is.na(dataset$ROAMING_USAGE_207)] <- 0
+  dataset$ROAMING_USAGE_208[is.na(dataset$ROAMING_USAGE_208)] <- 0
+  dataset$ROAMING_USAGE_209[is.na(dataset$ROAMING_USAGE_209)] <- 0
+  dataset$ROAMING_USAGE_210[is.na(dataset$ROAMING_USAGE_210)] <- 0
+  dataset$ROAMING_SESSIONS_206[is.na(dataset$ROAMING_USAGE_206)] <- 0
+  dataset$ROAMING_SESSIONS_207[is.na(dataset$ROAMING_SESSIONS_207)] <- 0
+  dataset$ROAMING_SESSIONS_208[is.na(dataset$ROAMING_SESSIONS_208)] <- 0
+  dataset$ROAMING_SESSIONS_209[is.na(dataset$ROAMING_SESSIONS_209)] <- 0
+  dataset$ROAMING_SESSIONS_210[is.na(dataset$ROAMING_SESSIONS_210)] <- 0
 }
 ```
 
@@ -358,7 +365,7 @@ rm(combine)
 ```{r}
 train$TARGET <- as.logical(train$TARGET)
 # levels(train) <- c("N", "P")
-test$HANDSET_NAME[test$HANDSET_NAME %in% setdiff(levels(test$HANDSET_NAME), levels(train$HANDSET_NAME))] <- NA
+# test$HANDSET_NAME[test$HANDSET_NAME %in% setdiff(levels(test$HANDSET_NAME), levels(train$HANDSET_NAME))] <- NA
 ```
 
 ## Exploration
@@ -374,51 +381,35 @@ test$HANDSET_NAME[test$HANDSET_NAME %in% setdiff(levels(test$HANDSET_NAME), leve
 ```
 
 ```{r}
-handsetOverview <- function(x) {
-  x %>%
-    group_by(HANDSET_NAME) %>% 
-    summarise(
-      MU_USAGE_MU = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-      USERS = length(unique(CONTRACT_KEY)),
-      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
-      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
-    arrange(desc(USERS)) %>%
-    head(n = 20)
-}
-cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
-rm(handsetOverview)
+# handsetOverview <- function(x) {
+#   x %>%
+#     group_by(HANDSET_NAME) %>% 
+#     summarise(
+#       MU_USAGE_MU = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+#       USERS = length(unique(CONTRACT_KEY)),
+#       TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
+#       PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
+#     arrange(desc(USERS)) %>%
+#     head(n = 20)
+# }
+# cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
+# rm(handsetOverview)
 ```
 
 ```{r}
-rateplanOverview <- function(x) {
-  x %>%
-    group_by(RATE_PLAN) %>% 
-    summarise(
-      MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-      USERS = length(unique(CONTRACT_KEY)), 
-      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
-      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
-    arrange(desc(USERS)) %>%
-    head(n = 20)
-}
-cbind(rateplanOverview(train), rateplanOverview(test)) %>% kable(row.names = FALSE)
-rm(rateplanOverview)
-```
-
-```{r}
-valuesegmentOverview <- function(x) {
-  x %>%
-    group_by(VALUE_SEGMENT) %>% 
-    summarise(
-      MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-      USERS = length(unique(CONTRACT_KEY)), 
-      TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
-      PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
-    arrange(desc(USERS)) %>%
-    head(n = 20)
-}
-cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.names = FALSE)
-rm(valuesegmentOverview)
+# valuesegmentOverview <- function(x) {
+#   x %>%
+#     group_by(VALUE_SEGMENT) %>% 
+#     summarise(
+#       MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
+#       USERS = length(unique(CONTRACT_KEY)), 
+#       TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
+#       PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
+#     arrange(desc(USERS)) %>%
+#     head(n = 20)
+# }
+# cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.names = FALSE)
+# rm(valuesegmentOverview)
 ```
 
 ```{r}
@@ -436,19 +427,16 @@ binaryIndicators <- function(dataset) {
   
   binary_indicators <- cbind(
     model.matrix(~ VALUE_SEGMENT - 1, data = modelFrame) %>% data.frame(),
-    model.matrix(~ GENDER - 1, data = modelFrame) %>% data.frame(),
-    model.matrix(~ RATE_PLAN - 1, data = modelFrame) %>% data.frame(),
-    model.matrix(~ HANDSET_NAME - 1, data = modelFrame) %>% data.frame()
+    model.matrix(~ GENDER - 1, data = modelFrame) %>% data.frame()
   )
   
   binary_indicators[is.na(binary_indicators)] <- 0
 
   dataset <- dataset %>%
-    select(-c(VALUE_SEGMENT, GENDER, RATE_PLAN, HANDSET_NAME)) %>%
+    select(-c(GENDER,
+              VALUE_SEGMENT)) %>%
     cbind(binary_indicators)
 }
-#train <- binaryIndicators(train)
-#test <- binaryIndicators(test)
 ```
 
 # Pre-processing
@@ -461,65 +449,44 @@ rm(daily, dates, monthly, roaming, testing, contracts)
 
 ```{r}
 # colSelect <- function (dataset) {
-#   select(dataset,
-#          RATE_PLAN,
-#          HANDSET_NAME,
-#          VALUE_SEGMENT,
-#          GENDER)
+#   binaryIndicators(dataset) %>%
+#   select(#starts_with("VALUE_SEGMENT"),
+#          #starts_with("GENDER"),
+#          starts_with("HANDSET_NAME"))
 # }
 # 
-# mca <- MCA(colSelect(train), graph = FALSE)
+# cumulVar <- function (pr) {
+#   cumsum(pr$sdev^2 / sum(pr$sdev^2))
+# }
 # 
-# rm(colSelect)
-```
-
-```{r}
-colSelect <- function (dataset) {
-  binaryIndicators(dataset) %>%
-  select(starts_with("RATE_PLAN"),
-         starts_with("HANDSET_NAME"),
-         starts_with("VALUE_SEGMENT"),
-         starts_with("GENDER"))
-}
-
-pca <- prcomp(colSelect(train), center = FALSE, scale = FALSE, tol = 0.1)
+# pca <- prcomp(colSelect(train), center = FALSE, scale = FALSE)
 
 reduceDim <- function (dataset) {
-  res <- predict(pca, newdata = colSelect(dataset))[, 1:50]
-  dataset %>%
-    # select(-starts_with("RATE_PLAN"),
-    #        -starts_with("HANDSET_NAME"),
-    #        -starts_with("VALUE_SEGMENT"),
-    #        -starts_with("GENDER")) %>%
-    cbind(res)
+  #res <- predict(pca, newdata = colSelect(dataset))[, 1:27]
+  binaryIndicators(dataset) #%>%
+    #select(-starts_with("HANDSET_NAME"))# %>%
+    #cbind(res)
 }
 
 train <- reduceDim(train)
 test <- reduceDim(test)
 
-rm(colSelect,
-   pca,
-   reduceDim,
-   binaryIndicators)
+rm(#colSelect,
+   #pca,
+   #cumulVar,
+   binaryIndicators,
+   reduceDim)
 ```
 
 ## BoxCox/Center/Scale
 
 ```{r}
-aux_train <- select(train, RATE_PLAN, HANDSET_NAME, VALUE_SEGMENT, GENDER)
-aux_test <- select(test, RATE_PLAN, HANDSET_NAME, VALUE_SEGMENT, GENDER)
-train <- select(train, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
-test <- select(test, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
-
 preProc <- preProcess(select(train, -CONTRACT_KEY, -TARGET),
                       method = c("BoxCox", "center", "scale", "bagImpute"),
                       na.action = na.pass)
 train <- predict(preProc, train)
 test <- predict(preProc, test)
 rm(preProc)
-train <- cbind(train, aux_train)
-test <- cbind(test, aux_test)
-rm(aux_train, aux_test)
 ```
 
 # Output
@@ -532,8 +499,8 @@ write.csv(test, "engineered.test.csv", row.names = FALSE)
 # Visualization
 
 ```{r}
-subs_train  <- train %>% select(GENDER, VALUE_SEGMENT, RATE_PLAN, HANDSET_NAME)
-subs_test   <- test %>% select(GENDER, VALUE_SEGMENT, RATE_PLAN, HANDSET_NAME)
+subs_train  <- train %>% select(GENDER, VALUE_SEGMENT, HANDSET_NAME)
+subs_test   <- test %>% select(GENDER, VALUE_SEGMENT, HANDSET_NAME)
 subs_data   <- rbind(subs_train, subs_test)
 
 mca <- MCA(subs_data, graph = FALSE)
@@ -553,7 +520,7 @@ ggplot(data = mca_obs, aes(x = Dim.1, y = Dim.2)) +
 ```
 
 ```{r}
-correlations <- cor(train %>% select(-c(AGE, GENDER, RATE_PLAN, VALUE_SEGMENT, HANDSET_NAME, TARGET)))
+correlations <- cor(train %>% select(-c(AGE, GENDER, VALUE_SEGMENT, HANDSET_NAME, TARGET)))
 corrplot(correlations, order = "hclust")
 #highCorr <- findCorrelation(correlations, cutoff = 0.75)
 #filtered <- train[, -highCorr]

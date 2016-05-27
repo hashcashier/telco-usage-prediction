@@ -28,8 +28,6 @@ train <- read.csv("engineered.train.csv")
 test <- read.csv("engineered.test.csv")
 train$TARGET <- factor(train$TARGET)
 levels(train$TARGET) <- c("Negative", "Positive")
-train_lite <- select(train, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
-test_lite <- select(test, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
 ```
 
 ```{r}
@@ -47,18 +45,9 @@ export_res <- function (res, fname) {
 
 ```{r}
 set.seed(1337)
-model.pls2 <- plsda(select(train_lite, -CONTRACT_KEY, -TARGET),
-                    train_lite$TARGET,
-                    probMehod = "Bayes",
-                    na.action = na.pass,
-                    ncomp = 13)
-```
-
-```{r}
-set.seed(1337)
-alternate_train <- downSample(select(train_lite, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
-model.pls <- train_lite(TARGET ~ .,
-                   alternate_train,
+alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+model.pls <- train(x = select(alternate_train, -TARGET),
+                   y = alternate_train$TARGET,
                    method = "pls",
                    tuneGrid = expand.grid(.ncomp = 1:20),
                    probMehod = "Bayes",
@@ -66,7 +55,7 @@ model.pls <- train_lite(TARGET ~ .,
                    na.action = na.pass,
                    trControl = trainControl(
                      #method = "cv",
-                     number = 2,
+                     number = 5,
                      classProbs = TRUE,
                      savePredictions = TRUE,
                      summaryFunction = twoClassSummary),
@@ -76,28 +65,7 @@ confusionMatrix(model.pls)
 ```
 
 ```{r}
-set.seed(1337)
-alternate_train <- upSample(select(train_lite, -CONTRACT_KEY, -TARGET), train_lite$TARGET, yname = "TARGET")
-model.pls <- train_lite(TARGET ~ .,
-                   alternate_train,
-                   method = "pls",
-                   tuneGrid = expand.grid(.ncomp = 1:20),
-                   probMehod = "Bayes",
-                   metric = "ROC",
-                   na.action = na.pass,
-                   trControl = trainControl(
-                     #method = "cv",
-                     number = 2,
-                     classProbs = TRUE,
-                     savePredictions = TRUE,
-                     summaryFunction = twoClassSummary),
-                   verbose = TRUE)
-model.pls
-confusionMatrix(model.pls)
-```
-
-```{r}
-pred.pls <- predict(model.pls, newdata = test_lite)
+pred.pls <- predict(model.pls, newdata = select(test, -CONTRACT_KEY))
 summary(pred.pls)
 ```
 
@@ -130,7 +98,7 @@ summary(pred.rpart)
 
 ```{r}
 set.seed(1337)
-alternate_train <- downSample(select(train_lite, -CONTRACT_KEY, -TARGET), train_lite$TARGET, yname = "TARGET")
+alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
 model.rf <-    train(x = select(alternate_train, -TARGET),
                      y = alternate_train$TARGET,
                      method = "rf",
