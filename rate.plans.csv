@@ -56,14 +56,14 @@ RATE_PLAN,PREPAID,POSTPAID,COST
 2014 Flex 80 CL 100,FALSE,TRUE,100
 2014 Flex 80 CL 150,FALSE,TRUE,150
 2014 Flex 80 CL 200,FALSE,TRUE,200
-2014 MAC Carpet,FALSE,FALSE,0
-2015 MAC Carpet,FALSE,FALSE,0
+2014 MAC Carpet,FALSE,FALSE,
+2015 MAC Carpet,FALSE,FALSE,
 Arabeety,FALSE,TRUE,75
 Arabeety Consumer,FALSE,TRUE,75
 Arabeety Plus,FALSE,TRUE,100
 Arabeety Voice,FALSE,TRUE,75
-Browser Unlmtd Data Business,FALSE,TRUE,250
-Business Ass. Engineering,FALSE,TRUE,0
+Browser Unlmtd Data Business,FALSE,TRUE,
+Business Ass. Engineering,FALSE,TRUE,
 Business Bouquet 200,FALSE,TRUE,200
 Business Bouquet 200 Control,FALSE,TRUE,200
 Business Bouquet 25 Control,FALSE,TRUE,25
@@ -89,13 +89,13 @@ Business USB 250 unlimited,FALSE,TRUE,250
 Business USB 25 Control,FALSE,TRUE,25
 Business USB 50,FALSE,TRUE,50
 Business USB 60 unlimited,FALSE,TRUE,60
-Business Use VPN,FALSE,TRUE,250
+Business Use VPN,FALSE,TRUE,
 Control  75,FALSE,TRUE,75
 Data Wallet,FALSE,TRUE,700
-Employee VPN,FALSE,FALSE,0
-Employee VPN Control,FALSE,FALSE,0
-Employee VPN with Desk phone,FALSE,FALSE,0
-Enterprise Shared Data Bundle,FALSE,TRUE,0
+Employee VPN,FALSE,FALSE,
+Employee VPN Control,FALSE,FALSE,
+Employee VPN with Desk phone,FALSE,FALSE,
+Enterprise Shared Data Bundle,FALSE,TRUE,
 Flex 40,FALSE,TRUE,40
 Flex 40 Hybrid CL 100,FALSE,TRUE,40
 Flex 40 Hybrid CL 50,FALSE,TRUE,40
@@ -148,10 +148,10 @@ Super 250,TRUE,FALSE,250
 Super Browser,TRUE,FALSE,50
 Super Downloader,TRUE,FALSE,150
 Super Streamer,TRUE,FALSE,100
-Tailored handheld tariff,FALSE,FALSE,0
-Tailored laptop tariff,FALSE,FALSE,0
-TE Basic Control,FALSE,FALSE,0
-TE Extra Control,FALSE,FALSE,0
+Tailored handheld tariff,FALSE,FALSE,
+Tailored laptop tariff,FALSE,FALSE,
+TE Basic Control,FALSE,FALSE,
+TE Extra Control,FALSE,FALSE,
 Unified USB 1.25 GB,TRUE,FALSE,25
 Unified USB 12 GB,TRUE,FALSE,150
 Unified USB 20 GB,TRUE,FALSE,250
@@ -159,11 +159,11 @@ Unified USB 3.5 GB,TRUE,FALSE,60
 Unified USB 7 GB,TRUE,FALSE,100
 Unlimited Data 25,TRUE,FALSE,25
 Unlimited Data 25 Business,FALSE,TRUE,25
-Upper Egypt Tariff CTRL,FALSE,FALSE,0
+Upper Egypt Tariff CTRL,FALSE,FALSE,
 USB Business Time 100,FALSE,TRUE,100
 USB Business Time 50,FALSE,TRUE,50
-V2V,FALSE,FALSE,0
-V2V Control,FALSE,FALSE,0
+V2V,FALSE,FALSE,
+V2V Control,FALSE,FALSE,
 VF Data Solution 120,FALSE,TRUE,120
 VF Data Solution 150,FALSE,TRUE,150
 VF Data Solution 20,FALSE,TRUE,20
@@ -171,10 +171,10 @@ VF Data Solution 250,FALSE,TRUE,250
 VF Data Solution 499,FALSE,TRUE,499
 VF Data Solution 5,FALSE,TRUE,5
 VF Data Solution 59,FALSE,TRUE,59
-VIP,FALSE,FALSE,0
-Vodafone Business,FALSE,TRUE,50
-Vodafone Easy,TRUE,TRUE,50
+VIP,FALSE,FALSE,
+Vodafone Business,FALSE,TRUE,
+Vodafone Easy,TRUE,TRUE,
 Vodafone Easy 150,TRUE,TRUE,150
 Vodafone Easy 50,TRUE,TRUE,50
 Vodafone line bronze bundle,FALSE,FALSE,80
-VPN Partners,FALSE,FALSE,0
+VPN Partners,FALSE,FALSE,
