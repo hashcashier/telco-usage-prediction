@@ -24,40 +24,13 @@ contracts <- read.csv("contract_ref.csv") %>%
   select(-RATE_PLAN)
 ```
 
-## Exploration
-
-```{r}
-# glimpse(contracts)
-# contracts %>% summary()
-```
-
-```{r}
-# hist(contracts$AGE)
-# hist(as.integer(contracts$GENDER))
-# hist(as.integer(contracts$VALUE_SEGMENT))
-# handset_count <- length(levels(contracts$HANDSET_NAME))
-# hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
-```
-
-## Outliers
-
-```{r}
-# contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
-# contracts %>% filter(AGE == 99) %>% nrow
-# contracts %>% filter(AGE < 0) %>% nrow
-```
+## Transformation
 
 ```{r}
 contracts$AGE[contracts$AGE == 99] <- NA
 contracts$AGE[contracts$AGE <= 0] <- NA
-```
-
-## Transformation
-
-```{r}
 levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
 levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
-# contracts$AGE <- powerCenterScale(contracts$AGE)
 contracts$HANDSET_NAME[contracts$HANDSET_NAME == ""] <- NA
 ```
 
@@ -66,18 +39,6 @@ contracts$HANDSET_NAME[contracts$HANDSET_NAME == ""] <- NA
 ```{r}
 monthly <- read.csv("train.csv")
 testing <- read.csv("test.csv")
-```
-
-## Exploration
-
-```{r}
-# glimpse(monthly)
-# monthly %>% summary()
-```
-
-```{r}
-# hist(monthly$X206_SESSION_COUNT, breaks = 100)
-# hist(monthly$X206_USAGE, breaks = 100)
 ```
 
 ## Feature Engineering
@@ -154,69 +115,11 @@ monthly <- usagePerSession(monthly)
 testing <- usagePerSession(testing)
 rm(usagePerSession)
 ```
-## Transformation
-
-```{r}
-powerCenterScaleLogAggr <- function(dataset) {
-  dataset$X206_SESSION_COUNT <- logCenterScale(dataset$X206_SESSION_COUNT)
-  dataset$X207_SESSION_COUNT <- logCenterScale(dataset$X207_SESSION_COUNT)
-  dataset$X208_SESSION_COUNT <- logCenterScale(dataset$X208_SESSION_COUNT)
-  dataset$X209_SESSION_COUNT <- logCenterScale(dataset$X209_SESSION_COUNT)
-  dataset$X210_SESSION_COUNT <- logCenterScale(dataset$X210_SESSION_COUNT)
-  dataset$X206_USAGE <-         powerCenterScale(dataset$X206_USAGE)
-  dataset$X207_USAGE <-         powerCenterScale(dataset$X207_USAGE)
-  dataset$X208_USAGE <-         powerCenterScale(dataset$X208_USAGE)
-  dataset$X209_USAGE <-         powerCenterScale(dataset$X209_USAGE)
-  dataset$X210_USAGE <-         powerCenterScale(dataset$X210_USAGE)
-  dataset$AVG_USAGE <-          powerCenterScale(dataset$AVG_USAGE)
-  dataset$X206_USAGE_DIFF <-    centerScale(dataset$X206_USAGE_DIFF)
-  dataset$X207_USAGE_DIFF <-    centerScale(dataset$X207_USAGE_DIFF)
-  dataset$X208_USAGE_DIFF <-    centerScale(dataset$X208_USAGE_DIFF)
-  dataset$X209_USAGE_DIFF <-    centerScale(dataset$X209_USAGE_DIFF)
-  dataset$X210_USAGE_DIFF <-    centerScale(dataset$X210_USAGE_DIFF)
-  dataset$AVG_SESS <-           logCenterScale(dataset$AVG_SESS)
-  dataset$X206_SESS_DIFF <-     centerScale(dataset$X206_SESS_DIFF)
-  dataset$X207_SESS_DIFF <-     centerScale(dataset$X207_SESS_DIFF)
-  dataset$X208_SESS_DIFF <-     centerScale(dataset$X208_SESS_DIFF)
-  dataset$X209_SESS_DIFF <-     centerScale(dataset$X209_SESS_DIFF)
-  dataset$X210_SESS_DIFF <-     centerScale(dataset$X210_SESS_DIFF)
-  dataset$AVG_USAGE_SESS <-     powerCenterScale(dataset$AVG_USAGE_SESS)
-  dataset$X206_USAGE_SESS <-    powerCenterScale(dataset$X206_USAGE_SESS)
-  dataset$X207_USAGE_SESS <-    powerCenterScale(dataset$X207_USAGE_SESS)
-  dataset$X208_USAGE_SESS <-    powerCenterScale(dataset$X208_USAGE_SESS)
-  dataset$X209_USAGE_SESS <-    powerCenterScale(dataset$X209_USAGE_SESS)
-  dataset$X210_USAGE_SESS <-    powerCenterScale(dataset$X210_USAGE_SESS)
-  return(dataset)
-}
-# Automated in caret
-# monthly <- powerCenterScaleLogAggr(monthly)
-# testing <- powerCenterScaleLogAggr(testing)
-rm(powerCenterScaleLogAggr)
-```
-
-## Outliers
-
-```{r}
-# summary(monthly)
-```
-
-### Session Count
-
-### Usage
 
 # Roaming
 
 ```{r}
 roaming <- read.csv("roaming_monthly.csv")
-```
-
-## Exploration
-
-```{r}
-# glimpse(roaming)
-# summary(roaming)
-# hist(roaming$USAGE, breaks = 100)
-# hist(roaming$SESSION_COUNT, breaks = 100)
 ```
 
 ## Transformation
@@ -236,36 +139,6 @@ roaming <- merge(roaming_usage, roaming_sessions)
 rm(roaming_usage, roaming_sessions)
 ```
 
-```{r}
-powerCenterScaleRoam <- function(dataset) {
-  dataset$ROAMING_USAGE_206 <- powerCenterScale(dataset$ROAMING_USAGE_206)
-  dataset$ROAMING_USAGE_207 <- powerCenterScale(dataset$ROAMING_USAGE_207)
-  dataset$ROAMING_USAGE_208 <- powerCenterScale(dataset$ROAMING_USAGE_208)
-  dataset$ROAMING_USAGE_209 <- powerCenterScale(dataset$ROAMING_USAGE_209)
-  dataset$ROAMING_USAGE_210 <- powerCenterScale(dataset$ROAMING_USAGE_210)
-  dataset$ROAMING_SESSIONS_206 <- powerCenterScale(dataset$ROAMING_SESSIONS_206)
-  dataset$ROAMING_SESSIONS_207 <- powerCenterScale(dataset$ROAMING_SESSIONS_207)
-  dataset$ROAMING_SESSIONS_208 <- powerCenterScale(dataset$ROAMING_SESSIONS_208)
-  dataset$ROAMING_SESSIONS_209 <- powerCenterScale(dataset$ROAMING_SESSIONS_209)
-  dataset$ROAMING_SESSIONS_210 <- powerCenterScale(dataset$ROAMING_SESSIONS_210)
-  return(dataset)
-}
-```
-
-```{r}
-# Caret
-# roaming <- powerCenterScaleRoam(roaming)
-rm(powerCenterScaleRoam)
-```
-
-## Outliers
-
-```{r}
-# hist(roaming$CALL_MONTH_KEY)
-# hist(roaming$USAGE)
-# hist(roaming$SESSION_COUNT)
-```
-
 # Daily Aggregate
 
 ```{r}
@@ -275,13 +148,6 @@ daily <- daily %>%
   rename(DATE_KEY = CALL_DATE_KEY) %>%
   merge(dates) %>%
   select(-c(MONTH_KEY, MONTH_NAME))
-```
-
-## Exploration
-
-```{r}
-# glimpse(daily)
-# daily %>% summary()
 ```
 
 ## Transformation
@@ -304,15 +170,6 @@ daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
 
 daily <- merge(daily_usage, daily_sessions)
 rm(daily_sum, daily_usage, daily_sessions)
-```
-
-## Outliers
-
-```{r}
-# hist(daily$TOTAL_CONSUMPTION, breaks = 100)
-# hist(daily$NO_OF_SESSIONS, breaks = 100)
-# hist(as.integer(daily$FULL_DATE))
-# hist(as.integer(daily$ROAMING_FLAG))
 ```
 
 # Combined: Monthly * Contracts * Roaming * Daily
@@ -347,60 +204,7 @@ rm(combine)
 
 ```{r}
 train$TARGET <- as.logical(train$TARGET)
-# levels(train) <- c("N", "P")
-# test$HANDSET_NAME[test$HANDSET_NAME %in% setdiff(levels(test$HANDSET_NAME), levels(train$HANDSET_NAME))] <- NA
 ```
-
-## Exploration
-
-```{r}
-# glimpse(train)
-# summary(train)
-```
-
-```{r}
-# glimpse(test)
-# summary(test)
-```
-
-```{r}
-# handsetOverview <- function(x) {
-#   x %>%
-#     group_by(HANDSET_NAME) %>% 
-#     summarise(
-#       MU_USAGE_MU = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-#       USERS = length(unique(CONTRACT_KEY)),
-#       TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
-#       PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
-#     arrange(desc(USERS)) %>%
-#     head(n = 20)
-# }
-# cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE)
-# rm(handsetOverview)
-```
-
-```{r}
-# valuesegmentOverview <- function(x) {
-#   x %>%
-#     group_by(VALUE_SEGMENT) %>% 
-#     summarise(
-#       MEAN_USAGE_MEAN = (mean(X206_USAGE) + mean(X207_USAGE) + mean(X208_USAGE) + mean(X209_USAGE) + mean(X210_USAGE))/5,
-#       USERS = length(unique(CONTRACT_KEY)), 
-#       TARGETS = ifelse(!is.null(x$TARGET), sum(TARGET), -1),
-#       PERC = ifelse(!is.null(x$TARGET), USERS/nrow(train), USERS/nrow(test))) %>% 
-#     arrange(desc(USERS)) %>%
-#     head(n = 20)
-# }
-# cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.names = FALSE)
-# rm(valuesegmentOverview)
-```
-
-```{r}
-# mean(train$TARGET)
-```
-
-All zeros benchmark = 0.5
-Training data is skewed, while test data is symmetric.
 
 ## Feature Engineering
 
@@ -446,34 +250,4 @@ rm(preProc)
 ```{r}
 write.csv(train, "engineered.train.csv", row.names = FALSE)
 write.csv(test, "engineered.test.csv", row.names = FALSE)
-```
-
-# Visualization
-
-```{r}
-subs_train  <- train %>% select(GENDER, VALUE_SEGMENT, HANDSET_NAME)
-subs_test   <- test %>% select(GENDER, VALUE_SEGMENT, HANDSET_NAME)
-subs_data   <- rbind(subs_train, subs_test)
-
-mca <- MCA(subs_data, graph = FALSE)
-mca_vars <- data.frame(mca$var$coord)
-mca_obs <- data.frame(mca$ind$coord, c(train$TARGET, rep(2, nrow(test))))
-names(mca_obs) <- c("Dim.1", "Dim.2", "Dim.3", "Dim.4", "Dim.5", "TARGET")
-```
-
-```{r}
-ggplot(data = mca_obs, aes(x = Dim.1, y = Dim.2)) +
-  geom_hline(yintercept = 0, colour = "gray70") +
-  geom_vline(xintercept = 0, colour = "gray70") +
-  geom_point(size = 1, aes(colour = factor(TARGET), alpha = factor(TARGET))) +
-  ggtitle("MCA plot of variables using R package FactoMineR") +
-  scale_colour_discrete(name = "Target") +
-  scale_alpha_manual(values = c(1, 1, 0.05))
-```
-
-```{r}
-correlations <- cor(train %>% select(-c(AGE, GENDER, VALUE_SEGMENT, HANDSET_NAME, TARGET)))
-corrplot(correlations, order = "hclust")
-#highCorr <- findCorrelation(correlations, cutoff = 0.75)
-#filtered <- train[, -highCorr]
 ```
