@@ -28,6 +28,8 @@ train <- read.csv("engineered.train.csv")
 test <- read.csv("engineered.test.csv")
 train$TARGET <- factor(train$TARGET)
 levels(train$TARGET) <- c("Negative", "Positive")
+train_lite <- select(train, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
+test_lite <- select(test, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
 ```
 
 ```{r}
@@ -45,8 +47,8 @@ export_res <- function (res, fname) {
 
 ```{r}
 set.seed(1337)
-model.pls2 <- plsda(select(train, -CONTRACT_KEY, -TARGET),
-                    train$TARGET,
+model.pls2 <- plsda(select(train_lite, -CONTRACT_KEY, -TARGET),
+                    train_lite$TARGET,
                     probMehod = "Bayes",
                     na.action = na.pass,
                     ncomp = 13)
@@ -54,8 +56,8 @@ model.pls2 <- plsda(select(train, -CONTRACT_KEY, -TARGET),
 
 ```{r}
 set.seed(1337)
-alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
-model.pls <- train(TARGET ~ .,
+alternate_train <- downSample(select(train_lite, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+model.pls <- train_lite(TARGET ~ .,
                    alternate_train,
                    method = "pls",
                    tuneGrid = expand.grid(.ncomp = 1:20),
@@ -75,8 +77,8 @@ confusionMatrix(model.pls)
 
 ```{r}
 set.seed(1337)
-alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
-model.pls <- train(TARGET ~ .,
+alternate_train <- upSample(select(train_lite, -CONTRACT_KEY, -TARGET), train_lite$TARGET, yname = "TARGET")
+model.pls <- train_lite(TARGET ~ .,
                    alternate_train,
                    method = "pls",
                    tuneGrid = expand.grid(.ncomp = 1:20),
@@ -95,7 +97,7 @@ confusionMatrix(model.pls)
 ```
 
 ```{r}
-pred.pls <- predict(model.pls, newdata = test)
+pred.pls <- predict(model.pls, newdata = test_lite)
 summary(pred.pls)
 ```
 
@@ -103,7 +105,7 @@ summary(pred.pls)
 
 ```{r}
 set.seed(1337)
-alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET, -starts_with("PC")), train$TARGET, yname = "TARGET")
 model.rpart <- train(x = select(alternate_train, -TARGET),
                      y = alternate_train$TARGET,
                      method = "rpart",
@@ -122,6 +124,31 @@ confusionMatrix(model.rpart)
 ```{r}
 pred.rpart <- predict(model.rpart, newdata = test)
 summary(pred.rpart)
+```
+
+# Random Forest
+
+```{r}
+set.seed(1337)
+alternate_train <- downSample(select(train_lite, -CONTRACT_KEY, -TARGET), train_lite$TARGET, yname = "TARGET")
+model.rf <-    train(x = select(alternate_train, -TARGET),
+                     y = alternate_train$TARGET,
+                     method = "rf",
+                     tuneLength = 1,
+                     trControl = trainControl(
+                       method = "boot",
+                       number = 2,
+                       classProbs = TRUE,
+                       savePredictions = TRUE,
+                       summaryFunction = twoClassSummary),
+                     metric = "ROC")
+model.rf
+confusionMatrix(model.rf)
+```
+
+```{r}
+pred.rf <- predict(model.rf, newdata = test)
+summary(pred.rf)
 ```
 
 # Neural Network

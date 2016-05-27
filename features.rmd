@@ -487,10 +487,10 @@ pca <- prcomp(colSelect(train), center = FALSE, scale = FALSE, tol = 0.1)
 reduceDim <- function (dataset) {
   res <- predict(pca, newdata = colSelect(dataset))[, 1:50]
   dataset %>%
-    select(-starts_with("RATE_PLAN"),
-           -starts_with("HANDSET_NAME"),
-           -starts_with("VALUE_SEGMENT"),
-           -starts_with("GENDER")) %>%
+    # select(-starts_with("RATE_PLAN"),
+    #        -starts_with("HANDSET_NAME"),
+    #        -starts_with("VALUE_SEGMENT"),
+    #        -starts_with("GENDER")) %>%
     cbind(res)
 }
 
@@ -506,12 +506,20 @@ rm(colSelect,
 ## BoxCox/Center/Scale
 
 ```{r}
+aux_train <- select(train, RATE_PLAN, HANDSET_NAME, VALUE_SEGMENT, GENDER)
+aux_test <- select(test, RATE_PLAN, HANDSET_NAME, VALUE_SEGMENT, GENDER)
+train <- select(train, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
+test <- select(test, -RATE_PLAN, -HANDSET_NAME, -VALUE_SEGMENT, -GENDER)
+
 preProc <- preProcess(select(train, -CONTRACT_KEY, -TARGET),
                       method = c("BoxCox", "center", "scale", "bagImpute"),
                       na.action = na.pass)
 train <- predict(preProc, train)
 test <- predict(preProc, test)
 rm(preProc)
+train <- cbind(train, aux_train)
+test <- cbind(test, aux_test)
+rm(aux_train, aux_test)
 ```
 
 # Output
