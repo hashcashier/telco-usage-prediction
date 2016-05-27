@@ -8,8 +8,6 @@ output: html_document
 # Setup
 
 ```{r}
-options( java.parameters = "-Xmx12g" )
-library(RWeka)
 library(dplyr)
 library(knitr)
 library(reshape2)
@@ -17,21 +15,6 @@ library(caret)
 library(FactoMineR)
 library(corrplot)
 library(impute)
-```
-
-```{r}
-# normalize <- function(x, lower = min(x, na.rm = TRUE), upper = max(x, na.rm = TRUE)) {
-#   return((x - lower)/(upper - lower))
-# }
-# centerScale <- function(x, mu = mean(x, na.rm = TRUE), sg = sd(x, na.rm = TRUE)) {
-#   return((x - mu)/sg)
-# }
-# powerCenterScale <- function(x, mu = mean(sqrt(x), na.rm = TRUE), sg = sd(sqrt(x), na.rm = TRUE)) {
-#   return(centerScale(sqrt(x), mu, sg))
-# }
-# logCenterScale <- function(x, mu = mean(log(x), na.rm = TRUE), sg = sd(log(x), na.rm = TRUE)) {
-#   return(centerScale(log(x), mu, sg))
-# }
 ```
 
 # Contract References
@@ -437,45 +420,14 @@ binaryIndicators <- function(dataset) {
               VALUE_SEGMENT)) %>%
     cbind(binary_indicators)
 }
+train <- binaryIndicators(train)
+test <- binaryIndicators(test)
 ```
 
 # Pre-processing
 
 ```{r}
 rm(daily, dates, monthly, roaming, testing, contracts)
-```
-
-## Feature Reduction
-
-```{r}
-# colSelect <- function (dataset) {
-#   binaryIndicators(dataset) %>%
-#   select(#starts_with("VALUE_SEGMENT"),
-#          #starts_with("GENDER"),
-#          starts_with("HANDSET_NAME"))
-# }
-# 
-# cumulVar <- function (pr) {
-#   cumsum(pr$sdev^2 / sum(pr$sdev^2))
-# }
-# 
-# pca <- prcomp(colSelect(train), center = FALSE, scale = FALSE)
-
-reduceDim <- function (dataset) {
-  #res <- predict(pca, newdata = colSelect(dataset))[, 1:27]
-  binaryIndicators(dataset) #%>%
-    #select(-starts_with("HANDSET_NAME"))# %>%
-    #cbind(res)
-}
-
-train <- reduceDim(train)
-test <- reduceDim(test)
-
-rm(#colSelect,
-   #pca,
-   #cumulVar,
-   binaryIndicators,
-   reduceDim)
 ```
 
 ## BoxCox/Center/Scale
