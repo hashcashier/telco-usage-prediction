@@ -14,6 +14,8 @@ library(dplyr)
 library(knitr)
 # library(reshape2)
 library(caret)
+library(caretEnsemble)
+library(beepr)
 # library(FactoMineR)
 # library(corrplot)
 # library(e1071)
@@ -40,7 +42,6 @@ export_res <- function (res, fname) {
 }
 ```
 
-
 # Partial Least Squares
 
 ```{r}
@@ -62,6 +63,7 @@ model.pls <- train(x = select(alternate_train, -TARGET),
                    verbose = TRUE)
 model.pls
 confusionMatrix(model.pls)
+beep("mario")
 ```
 
 ```{r}
@@ -73,7 +75,7 @@ summary(pred.pls)
 
 ```{r}
 set.seed(1337)
-alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET, -starts_with("PC")), train$TARGET, yname = "TARGET")
+alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
 model.rpart <- train(x = select(alternate_train, -TARGET),
                      y = alternate_train$TARGET,
                      method = "rpart",
@@ -87,6 +89,7 @@ model.rpart <- train(x = select(alternate_train, -TARGET),
                      metric = "ROC")
 model.rpart
 confusionMatrix(model.rpart)
+beep("complete")
 ```
 
 ```{r}
@@ -98,20 +101,22 @@ summary(pred.rpart)
 
 ```{r}
 set.seed(1337)
-alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
 model.rf <-    train(x = select(alternate_train, -TARGET),
                      y = alternate_train$TARGET,
                      method = "rf",
-                     tuneLength = 1,
+                     preProcess = "pca",
+                     tuneLength = 10,
                      trControl = trainControl(
                        method = "boot",
-                       number = 2,
+                       number = 1,
                        classProbs = TRUE,
                        savePredictions = TRUE,
                        summaryFunction = twoClassSummary),
                      metric = "ROC")
 model.rf
 confusionMatrix(model.rf)
+beep("fanfare")
 ```
 
 ```{r}
@@ -143,18 +148,90 @@ model.nnet <- train(x = select(alternate_train, -TARGET),
                        summaryFunction = twoClassSummary))
 model.nnet
 confusionMatrix(model.nnet)
+beep("ready")
 ```
 
 ```{r}
 pred.nnet <- predict(model.nnet, newdata = test)
 summary(pred.nnet)
 ```
+
+# Ensemble
+
+```{r}
+set.seed(1337)
+alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+control <- trainControl(method = "boot",
+                        number = 5,
+                        savePredictions = TRUE,
+                        classProbs = TRUE,
+                        index = createResample(alternate_train$TARGET, 5),
+                        summaryFunction = twoClassSummary)
+
+models <- list(pls = caretModelSpec(method = "pls",
+                                    tuneGrid = expand.grid(.ncomp = 1:20)),
+               rpart = caretModelSpec(method = "rpart",
+                                      tuneLength = 10),
+               rf = caretModelSpec(method="rf",
+                                   tuneGrid=expand.grid(.mtry = 1:10),
+                                   preProcess="pca"))
+
+model.ensemble.list <- caretList(TARGET ~ .,
+                                 data = alternate_train,
+                                 trControl = control,
+                                 tuneList = models,
+                                 metric = "ROC")
+model.ensemble.list
+modelCor(resamples(model.ensemble.list))
+
+model.ensemble <- caretEnsemble(model.ensemble.list,
+                                metric = "ROC",
+                                trControl = trainControl(
+                                  method = "boot",
+                                  number = 5,
+                                  summaryFunction = twoClassSummary,
+                                  classProbs = TRUE))
+model.ensemble
+confusionMatrix(model.ensemble$ens_model)
+summary(model.ensemble)
+rm(control, models)
+beep("coin")
+beep("treasure")
+```
+
+```{r}
+pred.ensemble <- predict(model.ensemble, newdata = select(test, -CONTRACT_KEY))
+summary(pred.ensemble)
+```
+
+# Stack
+
+```{r}
+model.stack <- caretStack(model.ensemble.list,
+                          method = "gbm",
+                          metric = "ROC",
+                          tuneLength = 4,
+                          trControl = trainControl(
+                            method = "boot",
+                            number = 5,
+                            savePredictions = "final",
+                            classProbs = TRUE,
+                            summaryFunction = twoClassSummary))
+
+model.stack
+confusionMatrix(model.stack$ens_model)
+summary(model.stack)
+beep("shotgun")
+beep("wilhelm")
+```
+
+```{r}
+pred.stack <- predict(model.stack, newdata = select(test, -CONTRACT_KEY))
+summary(pred.stack)
+```
+
 # Discriminant Analysis
 
 ```{r}
 model.qda <- qda(TARGET ~ ., data = train)
 ```
-
-# Random Forest
-
-Do MCA..
