@@ -15,13 +15,17 @@ library(caret)
 library(FactoMineR)
 library(corrplot)
 library(impute)
+library(beepr)
 ```
 
 # Contract References
 ```{r}
 contracts <- read.csv("contract_ref.csv") %>%
   merge(read.csv("rate.plans.csv"), all.x = TRUE) %>%
-  select(-RATE_PLAN)
+  merge(read.csv("handsets.csv"), all.x = TRUE) %>%
+  select(-RATE_PLAN, -HANDSET_NAME)
+contracts$HANDSET_BRAND[as.numeric(contracts$HANDSET_BRAND) %in% which(table(contracts$HANDSET_BRAND) < 500)] <- NA
+contracts$HANDSET_BRAND <- droplevels(contracts$HANDSET_BRAND)
 ```
 
 ## Transformation
@@ -31,7 +35,6 @@ contracts$AGE[contracts$AGE == 99] <- NA
 contracts$AGE[contracts$AGE <= 0] <- NA
 levels(contracts$GENDER) <- c("F", "F", "F", "M", "M", "M",  NA, NA)
 levels(contracts$VALUE_SEGMENT) <- c("Core", "High", "Med-High", "Med-Low", NA, "Platinum", "Premium")
-contracts$HANDSET_NAME[contracts$HANDSET_NAME == ""] <- NA
 ```
 
 # Monthly Aggregates: train/test
@@ -127,12 +130,12 @@ roaming <- read.csv("roaming_monthly.csv")
 ```{r}
 roaming_usage <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "USAGE")
 colnames(roaming_usage) <- paste("ROAMING_USAGE", colnames(roaming_usage), sep = "_")
-roaming_usage <- rename(roaming_usage, CONTRACT_KEY = ROAMING_USAGE_CONTRACT_KEY)
+roaming_usage <- roaming_usage %>% mutate(CONTRACT_KEY = ROAMING_USAGE_CONTRACT_KEY) %>% select(-ROAMING_USAGE_CONTRACT_KEY)
 roaming_usage[is.na(roaming_usage)] <- 0
 
 roaming_sessions <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "SESSION_COUNT")
 colnames(roaming_sessions) <- paste("ROAMING_SESSIONS", colnames(roaming_sessions), sep = "_")
-roaming_sessions <- rename(roaming_sessions, CONTRACT_KEY = ROAMING_SESSIONS_CONTRACT_KEY)
+roaming_sessions <- roaming_sessions %>% mutate(CONTRACT_KEY = ROAMING_SESSIONS_CONTRACT_KEY) %>% select(-ROAMING_SESSIONS_CONTRACT_KEY)
 roaming_sessions[is.na(roaming_sessions)] <- 0
 
 roaming <- merge(roaming_usage, roaming_sessions)
@@ -145,7 +148,8 @@ rm(roaming_usage, roaming_sessions)
 daily <- read.csv("daily_aggregate.csv")
 dates <- read.csv("calendar_ref.csv")
 daily <- daily %>%
-  rename(DATE_KEY = CALL_DATE_KEY) %>%
+  mutate(DATE_KEY = CALL_DATE_KEY) %>%
+  select(-CALL_DATE_KEY) %>%
   merge(dates) %>%
   select(-c(MONTH_KEY, MONTH_NAME))
 ```
@@ -162,11 +166,11 @@ daily_sum <- daily %>%
 
 daily_usage <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "USAGE")
 colnames(daily_usage) <- paste("USAGE", colnames(daily_usage), sep = "_")
-daily_usage <- rename(daily_usage, CONTRACT_KEY = USAGE_CONTRACT_KEY)
+daily_usage <- mutate(daily_usage, CONTRACT_KEY = USAGE_CONTRACT_KEY) %>% select(-USAGE_CONTRACT_KEY)
 
 daily_sessions <- dcast(daily_sum, CONTRACT_KEY ~ DATE_KEY, value.var = "SESSIONS")
 colnames(daily_sessions) <- paste("SESSIONS", colnames(daily_sessions), sep = "_")
-daily_sessions <- rename(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY)
+daily_sessions <- mutate(daily_sessions, CONTRACT_KEY = SESSIONS_CONTRACT_KEY) %>% select(-SESSIONS_CONTRACT_KEY)
 
 daily <- merge(daily_usage, daily_sessions)
 rm(daily_sum, daily_usage, daily_sessions)
@@ -176,7 +180,7 @@ rm(daily_sum, daily_usage, daily_sessions)
 
 ```{r}
 combine <- function(dataset) {
-  dataset %>%
+  dataset <- dataset %>%
     merge(contracts, all.x = TRUE) %>%
     merge(roaming, all.x = TRUE) #%>%
     #%>% merge(daily, all.x = TRUE)
@@ -186,11 +190,12 @@ combine <- function(dataset) {
   dataset$ROAMING_USAGE_208[is.na(dataset$ROAMING_USAGE_208)] <- 0
   dataset$ROAMING_USAGE_209[is.na(dataset$ROAMING_USAGE_209)] <- 0
   dataset$ROAMING_USAGE_210[is.na(dataset$ROAMING_USAGE_210)] <- 0
-  dataset$ROAMING_SESSIONS_206[is.na(dataset$ROAMING_USAGE_206)] <- 0
+  dataset$ROAMING_SESSIONS_206[is.na(dataset$ROAMING_SESSIONS_206)] <- 0
   dataset$ROAMING_SESSIONS_207[is.na(dataset$ROAMING_SESSIONS_207)] <- 0
   dataset$ROAMING_SESSIONS_208[is.na(dataset$ROAMING_SESSIONS_208)] <- 0
   dataset$ROAMING_SESSIONS_209[is.na(dataset$ROAMING_SESSIONS_209)] <- 0
   dataset$ROAMING_SESSIONS_210[is.na(dataset$ROAMING_SESSIONS_210)] <- 0
+  return(dataset)
 }
 ```
 
@@ -213,19 +218,30 @@ binaryIndicators <- function(dataset) {
   modelFrame <- model.frame(~ ., dataset, na.action = na.pass)
   
   binary_indicators <- cbind(
+    model.matrix(~ HANDSET_BRAND - 1, data = modelFrame) %>% data.frame(),
     model.matrix(~ VALUE_SEGMENT - 1, data = modelFrame) %>% data.frame(),
     model.matrix(~ GENDER - 1, data = modelFrame) %>% data.frame()
   )
   
   binary_indicators[is.na(binary_indicators)] <- 0
+  binary_indicators <- as.data.frame(binary_indicators) %>%
+    lapply(FUN = as.logical) %>%
+    data.frame
 
   dataset <- dataset %>%
-    select(-c(GENDER,
+    select(-c(HANDSET_BRAND,
+              GENDER,
               VALUE_SEGMENT)) %>%
     cbind(binary_indicators)
+  
+  return(dataset)
 }
+```
+
+```{r}
 train <- binaryIndicators(train)
 test <- binaryIndicators(test)
+rm(binaryIndicators)
 ```
 
 # Pre-processing
@@ -243,6 +259,7 @@ preProc <- preProcess(select(train, -CONTRACT_KEY, -TARGET),
 train <- predict(preProc, train)
 test <- predict(preProc, test)
 rm(preProc)
+beep("ready")
 ```
 
 # Output

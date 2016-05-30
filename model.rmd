@@ -173,7 +173,7 @@ models <- list(pls = caretModelSpec(method = "pls",
                rpart = caretModelSpec(method = "rpart",
                                       tuneLength = 10),
                rf = caretModelSpec(method="rf",
-                                   tuneGrid=expand.grid(.mtry = 1:10),
+                                   tuneGrid=expand.grid(.mtry = 10),
                                    preProcess="pca"))
 
 model.ensemble.list <- caretList(TARGET ~ .,
