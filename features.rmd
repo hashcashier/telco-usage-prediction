@@ -19,6 +19,9 @@ library(beepr)
 ```
 
 # Contract References
+
+Load contract data and correct for value abberations.
+
 ```{r}
 contracts <- read.csv("contract_ref.csv") %>%
   merge(read.csv("rate.plans.csv"), all.x = TRUE) %>%
@@ -29,6 +32,8 @@ contracts$HANDSET_BRAND <- droplevels(contracts$HANDSET_BRAND)
 ```
 
 ## Transformation
+
+Set extrema as missing values and reduce level duplication.
 
 ```{r}
 contracts$AGE[contracts$AGE == 99] <- NA
@@ -45,6 +50,8 @@ testing <- read.csv("test.csv")
 ```
 
 ## Feature Engineering
+
+Calculate the average monthly usage with variance, along with difference from mean for each month.
 
 ```{r}
 averageUsage <- function(dataset) {
@@ -66,6 +73,8 @@ testing <- averageUsage(testing)
 rm(averageUsage)
 ```
 
+Calculate average monthly session count with variance, and difference from mean.
+
 ```{r}
 averageSess <- function(dataset) {
   dataset <- dataset %>%
@@ -86,6 +95,8 @@ testing <- averageSess(testing)
 rm(averageSess)
 ```
 
+Calculate target variable for previous months.
+
 ```{r}
 overUse <- function(dataset) {
   dataset <- dataset %>%
@@ -100,6 +111,8 @@ testing <- overUse(testing)
 rm(overUse)
 ```
 
+Calculate inverted target (LESS than average by 500) for each month.
+
 ```{r}
 underUse <- function(dataset) {
   dataset <- dataset %>%
@@ -113,6 +126,8 @@ monthly <- underUse(monthly)
 testing <- underUse(testing)
 rm(underUse)
 ```
+
+Mean usage per session for each month.
 
 ```{r}
 usagePerSession <- function(dataset) {
@@ -136,6 +151,8 @@ roaming <- read.csv("roaming_monthly.csv")
 ```
 
 ## Transformation
+
+Transform listed data to monthly tabular form.
 
 ```{r}
 roaming_usage <- dcast(roaming, CONTRACT_KEY ~ CALL_MONTH_KEY, value.var = "USAGE")
@@ -166,6 +183,8 @@ daily <- daily %>%
 
 ## Transformation
 
+Transform to tabular form from list form. 1 data and 1 session count column for each day.
+
 ```{r}
 daily_sum <- daily %>%
   group_by(CONTRACT_KEY, DATE_KEY) %>%
@@ -186,7 +205,9 @@ daily <- merge(daily_usage, daily_sessions)
 rm(daily_sum, daily_usage, daily_sessions)
 ```
 
-# Combined: Monthly * Contracts * Roaming * Daily
+# Combined: Monthly * Contracts * Roaming
+
+Daily data is sparse and has been ignored. Roaming data isn't very useful either.
 
 ```{r}
 combine <- function(dataset) {
@@ -217,11 +238,15 @@ rm(combine)
 
 ## Transformation
 
+Convert integer target variable to boolean.
+
 ```{r}
 train$TARGET <- as.logical(train$TARGET)
 ```
 
 ## Feature Engineering
+
+Create binary indicator dummy variables for categorical values.
 
 ```{r}
 binaryIndicators <- function(dataset) {
@@ -262,6 +287,8 @@ rm(daily, dates, monthly, roaming, testing, contracts)
 
 ## BoxCox/Center/Scale
 
+Regularize variables and impute missing values.
+
 ```{r}
 preProc <- preProcess(select(train, -CONTRACT_KEY, -TARGET),
                       method = c("BoxCox", "center", "scale", "bagImpute"),
@@ -273,6 +300,8 @@ beep("ready")
 ```
 
 # Output
+
+Export data to CSV for quick reloading.
 
 ```{r}
 write.csv(train, "engineered.train.csv", row.names = FALSE)
