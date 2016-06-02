@@ -27,6 +27,10 @@ library(DMwR)
 library(ROSE)
 ```
 
+## Data
+
+Load and downsample data to account for bias.
+
 ```{r}
 train <- read.csv("engineered.train.csv")
 test <- read.csv("engineered.test.csv")
@@ -36,6 +40,10 @@ set.seed(1337)
 alternate_train_ds <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
 # alternate_train_smote <- SMOTE(TARGET ~., data = select(train, -CONTRACT_KEY))
 ```
+
+## Export
+
+Define quick submission export function for ease of use.
 
 ```{r}
 export_res <- function (res, fname) {
@@ -47,7 +55,11 @@ export_res <- function (res, fname) {
 }
 ```
 
-# Partial Least Squares
+# Models
+
+Each model is train on the downsampled dataset using different parameters and evaluated using Bootstrapping. The downsampling accounts for the skewness in the training dataset while bootstrap evaluation provides a significant speed boost allowing practical training times. Furthermore, model parameters are chosen as to optimize for AUC score.
+
+## Partial Least Squares
 
 ```{r}
 set.seed(1337)
@@ -59,8 +71,8 @@ model.pls <- train(x = select(alternate_train_ds, -TARGET),
                    metric = "ROC",
                    na.action = na.pass,
                    trControl = trainControl(
-                     #method = "cv",
-                     number = 5,
+                     method = "boot",
+                     number = 10,
                      classProbs = TRUE,
                      savePredictions = TRUE,
                      summaryFunction = twoClassSummary),
@@ -75,7 +87,7 @@ pred.pls <- predict(model.pls, newdata = select(test, -CONTRACT_KEY))
 summary(pred.pls)
 ```
 
-# RPART
+## RPART
 
 ```{r}
 set.seed(1337)
@@ -84,7 +96,7 @@ model.rpart <- train(x = select(alternate_train_ds, -TARGET),
                      method = "rpart",
                      tuneLength = 10,
                      trControl = trainControl(
-                       method = "cv",
+                       method = "boot",
                        number = 10,
                        classProbs = TRUE,
                        savePredictions = TRUE,
@@ -100,7 +112,7 @@ pred.rpart <- predict(model.rpart, newdata = test)
 summary(pred.rpart)
 ```
 
-# Random Forest
+## Random Forest
 
 ```{r}
 set.seed(1337)
@@ -111,7 +123,7 @@ model.rf <-    train(x = select(alternate_train_ds, -TARGET),
                      tuneGrid = expand.grid(.mtry = 7),
                      trControl = trainControl(
                        method = "boot",
-                       number = 5,
+                       number = 10,
                        classProbs = TRUE,
                        savePredictions = TRUE,
                        summaryFunction = twoClassSummary),
@@ -126,7 +138,7 @@ pred.rf <- predict(model.rf, newdata = test)
 summary(pred.rf)
 ```
 
-# Neural Network
+## Neural Network
 
 ```{r}
 set.seed(1337)
@@ -138,7 +150,7 @@ model.nnet <- train(x = select(alternate_train_ds, -TARGET),
                     trace = FALSE,
                     trControl = trainControl(
                        method = "boot",
-                       number = 5,
+                       number = 10,
                        classProbs = TRUE,
                        savePredictions = TRUE,
                        summaryFunction = twoClassSummary))
@@ -152,7 +164,7 @@ pred.nnet <- predict(model.nnet, newdata = test)
 summary(pred.nnet)
 ```
 
-# Least Squares SVM w/ RBF Kernel
+## Least Squares SVM w/ RBF Kernel
 
 ```{r}
 set.seed(1337)
@@ -175,7 +187,7 @@ pred.svm <- predict(model.svm, newdata = test)
 summary(pred.svm)
 ```
 
-# kNN
+## kNN
 
 ```{r}
 set.seed(1337)
@@ -186,7 +198,7 @@ model.knn <- train(x = select(alternate_train_ds, -TARGET),
                    tuneLength = 5,
                    trControl = trainControl(
                       method = "boot",
-                      number = 1,
+                      number = 10,
                       classProbs = TRUE,
                       savePredictions = TRUE,
                       summaryFunction = twoClassSummary))
@@ -200,39 +212,34 @@ pred.knn <- predict(model.knn, newdata = test)
 summary(pred.knn)
 ```
 
-# Bagged Logic Regression
+## Oblique Random Forest with PLS nodes
 
 ```{r}
 set.seed(1337)
-model.lbg <- train(x = select(alternate_train_ds, -TARGET),
-                   y = alternate_train_ds$TARGET,
-                   method = "ORFpls",
-                   metric = "ROC",
-                   tuneLength = 2,
-                   trControl = trainControl(
-                      method = "boot",
-                      number = 1,
-                      classProbs = TRUE,
-                      savePredictions = TRUE,
-                      summaryFunction = twoClassSummary))
-model.lbg
-confusionMatrix(model.lbg)
+model.orfpls <- train(x = select(alternate_train_ds, -TARGET),
+                      y = alternate_train_ds$TARGET,
+                      method = "ORFpls",
+                      metric = "ROC",
+                      tuneLength = 2,
+                      trControl = trainControl(
+                        method = "boot",
+                        number = 5,
+                        classProbs = TRUE,
+                        savePredictions = TRUE,
+                        summaryFunction = twoClassSummary))
+model.orfpls
+confusionMatrix(model.orfpls)
 beep("ready")
 ```
 
 ```{r}
-pred.lbg <- predict(model.lbg, newdata = test)
-summary(pred.lbg)
+pred.orfpls <- predict(model.orfpls, newdata = test)
+summary(pred.orfpls)
 ```
 
+# Model combinations
 
-# Ensemble
-
-```{r}
-# all.models <- list(model.pls, model.nnet)
-# names(all.models) <- sapply(all.models, function(x) x$method)
-# sort(sapply(all.models, function(x) min(x$results$ROC)))
-```
+We first define the set of models to be trained and the set of training parameters against which they are to be tested to optimize for AUC. After ensembling and stacking, we check the performance metrics of the combination, the correlations between each pair of member models, and the variable importance for the combination and each individual model. Our goal is to find a set of uncorellated models that base their decisions based on different sets of variables.
 
 ```{r}
 set.seed(1337)
@@ -269,7 +276,11 @@ model.ensemble.list <- caretList(TARGET ~ .,
                                  metric = "ROC")
 model.ensemble.list
 modelCor(resamples(model.ensemble.list))
+```
 
+## Ensemble
+
+```{r}
 model.ensemble <- caretEnsemble(model.ensemble.list,
                                 probMehod = "Bayes",
                                 metric = "ROC",
@@ -287,11 +298,15 @@ beep("treasure")
 ```
 
 ```{r}
+varImp(model.ensemble)
+```
+
+```{r}
 pred.ensemble <- predict(model.ensemble, newdata = select(test, -CONTRACT_KEY))
 summary(pred.ensemble)
 ```
 
-# Stack
+## Stack
 
 ```{r}
 model.stack <- caretStack(model.ensemble.list,
@@ -313,12 +328,10 @@ beep("wilhelm")
 ```
 
 ```{r}
-pred.stack <- predict(model.stack, newdata = select(test, -CONTRACT_KEY))
-summary(pred.stack)
+varImp(model.stack)
 ```
 
-# Discriminant Analysis
-
 ```{r}
-model.qda <- qda(TARGET ~ ., data = train)
+pred.stack <- predict(model.stack, newdata = select(test, -CONTRACT_KEY))
+summary(pred.stack)
 ```
