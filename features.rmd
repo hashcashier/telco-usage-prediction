@@ -50,6 +50,11 @@ testing <- read.csv("test.csv")
 averageUsage <- function(dataset) {
   dataset <- dataset %>%
     mutate(AVG_USAGE = (X206_USAGE + X207_USAGE + X208_USAGE + X209_USAGE + X210_USAGE)/5) %>%
+    mutate(VAR_USAGE =   (X206_USAGE - AVG_USAGE)^2
+                       + (X207_USAGE - AVG_USAGE)^2
+                       + (X208_USAGE - AVG_USAGE)^2
+                       + (X209_USAGE - AVG_USAGE)^2
+                       + (X210_USAGE - AVG_USAGE)^2) %>%
     mutate(X206_USAGE_DIFF = (X206_USAGE - AVG_USAGE)) %>%
     mutate(X207_USAGE_DIFF = (X207_USAGE - AVG_USAGE)) %>%
     mutate(X208_USAGE_DIFF = (X208_USAGE - AVG_USAGE)) %>%
@@ -65,6 +70,11 @@ rm(averageUsage)
 averageSess <- function(dataset) {
   dataset <- dataset %>%
     mutate(AVG_SESS = (X206_SESSION_COUNT+X207_SESSION_COUNT+X208_SESSION_COUNT+X209_SESSION_COUNT+X210_SESSION_COUNT)/5) %>%
+    mutate(VAR_SESS =    (X206_SESSION_COUNT - AVG_SESS)^2
+                       + (X207_SESSION_COUNT - AVG_SESS)^2
+                       + (X208_SESSION_COUNT - AVG_SESS)^2
+                       + (X209_SESSION_COUNT - AVG_SESS)^2
+                       + (X210_SESSION_COUNT - AVG_SESS)^2) %>%
     mutate(X206_SESS_DIFF = (X206_SESSION_COUNT - AVG_SESS)) %>%
     mutate(X207_SESS_DIFF = (X207_SESSION_COUNT - AVG_SESS)) %>%
     mutate(X208_SESS_DIFF = (X208_SESSION_COUNT - AVG_SESS)) %>%

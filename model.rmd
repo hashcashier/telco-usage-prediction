@@ -23,6 +23,8 @@ library(beepr)
 # Let's not thrash my SSD to death for the sake of this project..
 # library(doMC)
 # registerDoMC(cores = 3)
+library(DMwR)
+library(ROSE)
 ```
 
 ```{r}
@@ -30,6 +32,9 @@ train <- read.csv("engineered.train.csv")
 test <- read.csv("engineered.test.csv")
 train$TARGET <- factor(train$TARGET)
 levels(train$TARGET) <- c("Negative", "Positive")
+set.seed(1337)
+alternate_train_ds <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+# alternate_train_smote <- SMOTE(TARGET ~., data = select(train, -CONTRACT_KEY))
 ```
 
 ```{r}
@@ -46,11 +51,10 @@ export_res <- function (res, fname) {
 
 ```{r}
 set.seed(1337)
-alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
-model.pls <- train(x = select(alternate_train, -TARGET),
-                   y = alternate_train$TARGET,
+model.pls <- train(x = select(alternate_train_ds, -TARGET),
+                   y = alternate_train_ds$TARGET,
                    method = "pls",
-                   tuneGrid = expand.grid(.ncomp = 1:20),
+                   tuneGrid = expand.grid(.ncomp = 10:25),
                    probMehod = "Bayes",
                    metric = "ROC",
                    na.action = na.pass,
@@ -75,9 +79,8 @@ summary(pred.pls)
 
 ```{r}
 set.seed(1337)
-alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
-model.rpart <- train(x = select(alternate_train, -TARGET),
-                     y = alternate_train$TARGET,
+model.rpart <- train(x = select(alternate_train_ds, -TARGET),
+                     y = alternate_train_ds$TARGET,
                      method = "rpart",
                      tuneLength = 10,
                      trControl = trainControl(
@@ -101,15 +104,14 @@ summary(pred.rpart)
 
 ```{r}
 set.seed(1337)
-alternate_train <- upSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
-model.rf <-    train(x = select(alternate_train, -TARGET),
-                     y = alternate_train$TARGET,
+model.rf <-    train(x = select(alternate_train_ds, -TARGET),
+                     y = alternate_train_ds$TARGET,
                      method = "rf",
-                     preProcess = "pca",
-                     tuneLength = 10,
+                     #preProcess = "pca",
+                     tuneGrid = expand.grid(.mtry = 7),
                      trControl = trainControl(
                        method = "boot",
-                       number = 1,
+                       number = 5,
                        classProbs = TRUE,
                        savePredictions = TRUE,
                        summaryFunction = twoClassSummary),
@@ -128,21 +130,15 @@ summary(pred.rf)
 
 ```{r}
 set.seed(1337)
-alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
-maxSize <- 2
-numWts <- 2#maxSize * ncol(alternate_train) + maxSize + 1
-model.nnet <- train(x = select(alternate_train, -TARGET),
-                    y = alternate_train$TARGET,
+model.nnet <- train(x = select(alternate_train_ds, -TARGET),
+                    y = alternate_train_ds$TARGET,
                     method = "nnet",
                     metric = "ROC",
-                    tuneGrid = expand.grid(.size = 1:maxSize,
-                                           .decay = c(0, 0.1, 1, 2)),
-                    #trace = FALSE,
-                    maxit = 10,
-                    MaxNWts = numWts,
+                    tuneLength = 2,
+                    trace = FALSE,
                     trControl = trainControl(
-                       #method = "cv",
-                       number = 2,
+                       method = "boot",
+                       number = 5,
                        classProbs = TRUE,
                        savePredictions = TRUE,
                        summaryFunction = twoClassSummary))
@@ -156,35 +152,126 @@ pred.nnet <- predict(model.nnet, newdata = test)
 summary(pred.nnet)
 ```
 
-# Ensemble
+# Least Squares SVM w/ RBF Kernel
 
 ```{r}
 set.seed(1337)
-alternate_train <- downSample(select(train, -CONTRACT_KEY, -TARGET), train$TARGET, yname = "TARGET")
+model.svm <- train(x = select(alternate_train_ds, -TARGET),
+                   y = alternate_train_ds$TARGET,
+                   method = "lssvmRadial",
+                   tuneLength = 5,
+                   metric = "Kappa",
+                   trControl = trainControl(
+                      method = "cv",
+                      number = 10,
+                      savePredictions = TRUE))
+model.svm
+confusionMatrix(model.svm)
+beep("ready")
+```
+
+```{r}
+pred.svm <- predict(model.svm, newdata = test)
+summary(pred.svm)
+```
+
+# kNN
+
+```{r}
+set.seed(1337)
+model.knn <- train(x = select(alternate_train_ds, -TARGET),
+                   y = alternate_train_ds$TARGET,
+                   method = "knn",
+                   metric = "ROC",
+                   tuneLength = 5,
+                   trControl = trainControl(
+                      method = "boot",
+                      number = 1,
+                      classProbs = TRUE,
+                      savePredictions = TRUE,
+                      summaryFunction = twoClassSummary))
+model.knn
+confusionMatrix(model.knn)
+beep("ready")
+```
+
+```{r}
+pred.knn <- predict(model.knn, newdata = test)
+summary(pred.knn)
+```
+
+# Bagged Logic Regression
+
+```{r}
+set.seed(1337)
+model.lbg <- train(x = select(alternate_train_ds, -TARGET),
+                   y = alternate_train_ds$TARGET,
+                   method = "ORFpls",
+                   metric = "ROC",
+                   tuneLength = 2,
+                   trControl = trainControl(
+                      method = "boot",
+                      number = 1,
+                      classProbs = TRUE,
+                      savePredictions = TRUE,
+                      summaryFunction = twoClassSummary))
+model.lbg
+confusionMatrix(model.lbg)
+beep("ready")
+```
+
+```{r}
+pred.lbg <- predict(model.lbg, newdata = test)
+summary(pred.lbg)
+```
+
+
+# Ensemble
+
+```{r}
+# all.models <- list(model.pls, model.nnet)
+# names(all.models) <- sapply(all.models, function(x) x$method)
+# sort(sapply(all.models, function(x) min(x$results$ROC)))
+```
+
+```{r}
+set.seed(1337)
 control <- trainControl(method = "boot",
                         number = 5,
                         savePredictions = TRUE,
                         classProbs = TRUE,
-                        index = createResample(alternate_train$TARGET, 5),
+                        index = createResample(alternate_train_ds$TARGET, 5),
                         summaryFunction = twoClassSummary)
 
 models <- list(pls = caretModelSpec(method = "pls",
+                                    probMehod = "Bayes",
+                                    metric = "ROC",
                                     tuneGrid = expand.grid(.ncomp = 1:20)),
-               rpart = caretModelSpec(method = "rpart",
-                                      tuneLength = 10),
                rf = caretModelSpec(method="rf",
+                                   probMehod = "Bayes",
+                                   metric = "ROC",
                                    tuneGrid=expand.grid(.mtry = 10),
-                                   preProcess="pca"))
+                                   preProcess="pca"),
+               nnet = caretModelSpec(method = "nnet",
+                                     probMehod = "Bayes",
+                                     metric = "ROC",
+                                     tuneLength = 5),
+               knn = caretModelSpect(method = "knn",
+                                     probMethod = "Bayes",
+                                     metric = "ROC",
+                                     tuneLength = 5))
 
 model.ensemble.list <- caretList(TARGET ~ .,
-                                 data = alternate_train,
+                                 data = alternate_train_ds,
                                  trControl = control,
+                                 probMehod = "Bayes",
                                  tuneList = models,
                                  metric = "ROC")
 model.ensemble.list
 modelCor(resamples(model.ensemble.list))
 
 model.ensemble <- caretEnsemble(model.ensemble.list,
+                                probMehod = "Bayes",
                                 metric = "ROC",
                                 trControl = trainControl(
                                   method = "boot",

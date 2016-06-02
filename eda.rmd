@@ -17,14 +17,20 @@ library(corrplot)
 library(impute)
 ```
 
+This file is a collection of exploratory snippets. It assumes the data has been already loaded and is meant to be used in parallel with the model and features scripts.
+
 # Contract References
 
 ## Exploration
+
+We take a look at the structure the contracts data is stored in.
 
 ```{r}
 glimpse(contracts)
 contracts %>% summary()
 ```
+
+Inspect the distributions of each variable for any biases or skewness.
 
 ```{r}
 hist(contracts$AGE)
@@ -36,6 +42,8 @@ hist(as.integer(contracts$HANDSET_NAME), breaks = handset_count)
 
 ## Outliers
 
+Understand how many outliers we have.
+
 ```{r}
 contracts %>% filter(AGE > 80, AGE < 99) %>% nrow
 contracts %>% filter(AGE == 99) %>% nrow
@@ -46,10 +54,14 @@ contracts %>% filter(AGE < 0) %>% nrow
 
 ## Exploration
 
+Structural inspection
+
 ```{r}
 glimpse(monthly)
 monthly %>% summary()
 ```
+
+Distributions
 
 ```{r}
 hist(monthly$X206_SESSION_COUNT, breaks = 100)
@@ -57,6 +69,8 @@ hist(monthly$X206_USAGE, breaks = 100)
 ```
 
 ## Outliers
+
+Checkout extreme min and max values for usage variables.
 
 ```{r}
 summary(monthly)
@@ -66,6 +80,8 @@ summary(monthly)
 
 ## Exploration
 
+Structure and distribution
+
 ```{r}
 glimpse(roaming)
 summary(roaming)
@@ -74,6 +90,8 @@ hist(roaming$SESSION_COUNT, breaks = 100)
 ```
 
 ## Outliers
+
+More distributions
 
 ```{r}
 hist(roaming$CALL_MONTH_KEY)
@@ -85,12 +103,16 @@ hist(roaming$SESSION_COUNT)
 
 ## Exploration
 
+Structure and extrema
+
 ```{r}
 glimpse(daily)
 daily %>% summary()
 ```
 
 ## Outliers
+
+Distribution of daily data
 
 ```{r}
 hist(daily$TOTAL_CONSUMPTION, breaks = 100)
@@ -101,7 +123,10 @@ hist(as.integer(daily$ROAMING_FLAG))
 
 # Combined: Monthly * Contracts * Roaming * Daily
 
+
 ## Exploration
+
+How the combined datasets compare
 
 ```{r}
 glimpse(train)
@@ -112,6 +137,8 @@ summary(train)
 glimpse(test)
 summary(test)
 ```
+
+Exploring handset data
 
 ```{r}
 handsetOverview <- function(x) {
@@ -129,6 +156,8 @@ cbind(handsetOverview(train), handsetOverview(test)) %>% kable(row.names = FALSE
 rm(handsetOverview)
 ```
 
+# Value segment inspection
+
 ```{r}
 valuesegmentOverview <- function(x) {
   x %>%
@@ -145,14 +174,18 @@ cbind(valuesegmentOverview(train), valuesegmentOverview(test)) %>% kable(row.nam
 rm(valuesegmentOverview)
 ```
 
+Target variable skewness
+
 ```{r}
 mean(train$TARGET)
 ```
 
 All zeros benchmark = 0.5
-Training data is skewed, while test data is symmetric.
+Training data is skewed, while test data is symmetric. Need to correct for this.
 
 # Visualization
+
+Multiple component analysis visualization.
 
 ```{r}
 subs_train  <- train %>% select(GENDER, VALUE_SEGMENT, HANDSET_NAME)
@@ -174,6 +207,8 @@ ggplot(data = mca_obs, aes(x = Dim.1, y = Dim.2)) +
   scale_colour_discrete(name = "Target") +
   scale_alpha_manual(values = c(1, 1, 0.05))
 ```
+
+Variable correlations
 
 ```{r}
 correlations <- cor(train %>% select(-c(AGE, GENDER, VALUE_SEGMENT, HANDSET_NAME, TARGET)))
